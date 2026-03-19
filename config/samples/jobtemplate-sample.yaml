@@ -1,0 +1,21 @@
+apiVersion: forge.forgeplatform.io/v1alpha1
+kind: JobTemplate
+metadata:
+  name: deploy-web
+  namespace: default
+spec:
+  description: "Deploys the web tier via Ansible"
+  jobType: run
+  inventory: Demo Inventory      # name as it appears in Forge UI
+  project: Demo Project
+  playbook: site.yml
+  forks: 5
+  verbosity: 1
+  extraVars: |
+    target_env: staging
+    feature_flags:
+      - enable_x
+      - enable_y
+  credentials:
+    - Demo Credential
+  askVariablesOnLaunch: true
