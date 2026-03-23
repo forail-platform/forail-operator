@@ -1,0 +1,61 @@
+# forge-operator — Helm values
+
+# ── Image ─────────────────────────────────────────────────
+image:
+  repository: registry.cloudforyour.work/forge-platform/forge-operator
+  tag: "0.3.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: harbor-pull
+
+# ── Forge connection ─────────────────────────────────────
+forge:
+  # In-cluster URL to the forge-web service. Override if using an external
+  # Forge instance.
+  url: http://forge-web.forge.svc.cluster.local:8013
+
+  # Skip TLS verification (only when forge.url is HTTPS with self-signed).
+  insecureSkipVerify: false
+
+  # Optional Host header override — needed when reaching Forge through
+  # an Ingress that routes by hostname but forge.url uses an IP.
+  hostHeader: ""
+
+  # OAuth2 personal access token. Generate with:
+  #   kubectl -n forge exec deploy/forge-web -- forge-manage create_oauth2_token --user admin
+  # Set token directly here, or set existingSecret to point at a
+  # pre-created Secret with key "token".
+  token: ""
+  existingSecret: ""
+
+# ── Operator deployment ──────────────────────────────────
+replicas: 1
+
+resources:
+  requests: { memory: 64Mi, cpu: 50m }
+  limits:   { memory: 256Mi, cpu: 500m }
+
+leaderElection: false
+
+# ── RBAC ─────────────────────────────────────────────────
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: forge-operator
+
+# ── Metrics / Probes ─────────────────────────────────────
+metrics:
+  port: 8080
+probe:
+  port: 8081
+
+# ── CRDs ─────────────────────────────────────────────────
+# Helm installs files under crds/ on `helm install`, but does not
+# update them on upgrade — that is by Helm design. To force a refresh:
+#   helm uninstall forge-operator && helm install forge-operator ...
+# Or apply manually: kubectl apply -f config/crd/bases/
+crds:
+  install: true
