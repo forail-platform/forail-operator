@@ -1,0 +1,46 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-forge-operator
+  labels:
+    {{- include "forge-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["forge.forgeplatform.io"]
+    resources: ["jobtemplates", "inventories", "credentials", "schedules"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["forge.forgeplatform.io"]
+    resources: ["jobtemplates/status", "inventories/status", "credentials/status", "schedules/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["forge.forgeplatform.io"]
+    resources: ["jobtemplates/finalizers", "inventories/finalizers", "credentials/finalizers", "schedules/finalizers"]
+    verbs: ["update"]
+  # Credential reconciler reads referenced k8s Secrets for sensitive
+  # input fields (passwords, ssh keys, vault tokens).
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  {{- if .Values.leaderElection }}
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-forge-operator
+  labels:
+    {{- include "forge-operator.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "forge-operator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-forge-operator
+{{- end }}
