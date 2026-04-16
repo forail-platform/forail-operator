@@ -1,0 +1,12 @@
+apiVersion: forge.forgeplatform.io/v1alpha1
+kind: Schedule
+metadata:
+  name: nightly-deploy
+  namespace: default
+spec:
+  description: "Run hello-world every weekday at 02:00 UTC"
+  jobTemplate: hello-world
+  enabled: true
+  rrule: "DTSTART:20260101T020000Z RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+  extraData: |
+    target_env: nightly
