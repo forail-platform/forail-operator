@@ -7,6 +7,8 @@ spec:
   description: "Run hello-world every weekday at 02:00 UTC"
   jobTemplate: hello-world
   enabled: true
-  rrule: "DTSTART:20260101T020000Z RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
+  # Forge requires INTERVAL in every RRULE. Without it the API returns
+  # 400 with "INTERVAL required in rrule".
+  rrule: "DTSTART:20260101T020000Z RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR"
   extraData: |
     target_env: nightly
