@@ -15,7 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
 	"github.com/forgeplatform/forge-operator/internal/forgeapi"
@@ -210,7 +212,41 @@ func (r *CredentialReconciler) markCredentialError(ctx context.Context, cr *forg
 func (r *CredentialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&forgev1.Credential{}).
+		// Watch Secrets so a kubectl edit of a referenced Secret triggers
+		// reconcile within seconds instead of waiting for the 60s
+		// requeue. Without this, rotating an SSH key required an
+		// explicit annotation kick on the Credential CR.
+		Watches(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(r.credentialsReferencingSecret),
+		).
 		Complete(r)
+}
+
+// credentialsReferencingSecret maps a Secret event to all Credentials in
+// the same namespace whose spec.inputsFrom references it.
+func (r *CredentialReconciler) credentialsReferencingSecret(ctx context.Context, obj client.Object) []reconcile.Request {
+	sec, ok := obj.(*corev1.Secret)
+	if !ok {
+		return nil
+	}
+	var creds forgev1.CredentialList
+	if err := r.List(ctx, &creds, client.InNamespace(sec.Namespace)); err != nil {
+		return nil
+	}
+	var reqs []reconcile.Request
+	for i := range creds.Items {
+		cr := &creds.Items[i]
+		for _, ref := range cr.Spec.InputsFrom {
+			if ref.ValueFrom.Name == sec.Name {
+				reqs = append(reqs, reconcile.Request{
+					NamespacedName: types.NamespacedName{Namespace: cr.Namespace, Name: cr.Name},
+				})
+				break
+			}
+		}
+	}
+	return reqs
 }
 
 func setCredentialCondition(cr *forgev1.Credential, condType string, status metav1.ConditionStatus, reason, msg string) {
