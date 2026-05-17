@@ -1,0 +1,52 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - forge.forgeplatform.io
+  resources:
+  - credentials
+  - inventories
+  - jobtemplates
+  - projects
+  - schedules
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - forge.forgeplatform.io
+  resources:
+  - credentials/finalizers
+  - inventories/finalizers
+  - jobtemplates/finalizers
+  - projects/finalizers
+  - schedules/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - forge.forgeplatform.io
+  resources:
+  - credentials/status
+  - inventories/status
+  - jobtemplates/status
+  - projects/status
+  - schedules/status
+  verbs:
+  - get
+  - patch
+  - update

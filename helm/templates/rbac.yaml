@@ -7,13 +7,13 @@ metadata:
     {{- include "forge-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups: ["forge.forgeplatform.io"]
-    resources: ["jobtemplates", "inventories", "credentials", "schedules"]
+    resources: ["jobtemplates", "inventories", "credentials", "schedules", "projects"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   - apiGroups: ["forge.forgeplatform.io"]
-    resources: ["jobtemplates/status", "inventories/status", "credentials/status", "schedules/status"]
+    resources: ["jobtemplates/status", "inventories/status", "credentials/status", "schedules/status", "projects/status"]
     verbs: ["get", "update", "patch"]
   - apiGroups: ["forge.forgeplatform.io"]
-    resources: ["jobtemplates/finalizers", "inventories/finalizers", "credentials/finalizers", "schedules/finalizers"]
+    resources: ["jobtemplates/finalizers", "inventories/finalizers", "credentials/finalizers", "schedules/finalizers", "projects/finalizers"]
     verbs: ["update"]
   # Credential reconciler reads referenced k8s Secrets for sensitive
   # input fields (passwords, ssh keys, vault tokens).

@@ -111,6 +111,12 @@ func newManager(t *testing.T, ctx context.Context, forgeURL, forgeToken string) 
 		Complete(&ScheduleReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
 		t.Fatalf("setup schedule: %v", err)
 	}
+	if err := ctrl.NewControllerManagedBy(mgr).
+		For(&forgev1.Project{}).
+		Named("project" + suffix).
+		Complete(&ProjectReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
+		t.Fatalf("setup project: %v", err)
+	}
 
 	mgrCtx, cancel := context.WithCancel(ctx)
 	mgrDone := make(chan struct{})

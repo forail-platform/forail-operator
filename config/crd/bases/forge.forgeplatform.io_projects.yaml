@@ -4,33 +4,35 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.5
-  name: inventories.forge.forgeplatform.io
+  name: projects.forge.forgeplatform.io
 spec:
   group: forge.forgeplatform.io
   names:
     categories:
     - forge
-    kind: Inventory
-    listKind: InventoryList
-    plural: inventories
+    kind: Project
+    listKind: ProjectList
+    plural: projects
     shortNames:
-    - inv
-    singular: inventory
+    - prj
+    singular: project
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.forgeId
       name: Forge ID
       type: integer
-    - jsonPath: .spec.organization
-      name: Org
+    - jsonPath: .spec.scmType
+      name: SCM
       type: string
-    - jsonPath: .status.hostCount
-      name: Hosts
-      type: integer
-    - jsonPath: .status.groupCount
-      name: Groups
-      type: integer
+    - jsonPath: .spec.scmUrl
+      name: URL
+      priority: 1
+      type: string
+    - jsonPath: .spec.scmBranch
+      name: Branch
+      priority: 1
+      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
@@ -40,7 +42,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Inventory is the Schema for the inventories API.
+        description: Project is the Schema for the projects API.
         properties:
           apiVersion:
             description: |-
@@ -60,76 +62,74 @@ spec:
           metadata:
             type: object
           spec:
-            description: InventorySpec defines the desired state of a Forge Inventory.
+            description: |-
+              ProjectSpec mirrors a subset of Forge `/api/v2/projects/`.
+              SCM credential (if any) is referenced by name and resolved at reconcile.
             properties:
+              allowOverride:
+                type: boolean
+              defaultEnvironment:
+                description: Default Execution Environment name. Empty = global default.
+                type: string
               description:
                 type: string
-              groups:
-                description: Groups to ensure exist. Same idempotency semantics as
-                  Hosts.
-                items:
-                  description: InventoryGroup is a group of hosts and/or sub-groups.
-                  properties:
-                    children:
-                      description: |-
-                        Child group names (must also be declared at top level under
-                        spec.groups). Forms group-of-groups hierarchies.
-                      items:
-                        type: string
-                      type: array
-                    description:
-                      type: string
-                    hosts:
-                      description: |-
-                        Hosts that belong to this group (must also be declared at top
-                        level under spec.hosts).
-                      items:
-                        type: string
-                      type: array
-                    name:
-                      type: string
-                    variables:
-                      description: Free-form YAML / JSON group variables.
-                      type: string
-                  required:
-                  - name
-                  type: object
-                type: array
-              hosts:
-                description: |-
-                  Hosts to ensure exist in this inventory. Operator will add new
-                  ones, update changed ones, and remove ones that are no longer
-                  listed (idempotent reconcile).
-                items:
-                  description: InventoryHost is a single host inside the inventory.
-                  properties:
-                    description:
-                      type: string
-                    enabled:
-                      default: true
-                      type: boolean
-                    name:
-                      type: string
-                    variables:
-                      description: Free-form YAML / JSON host variables.
-                      type: string
-                  required:
-                  - name
-                  type: object
-                type: array
+              forgeInstance:
+                description: Optional ForgeInstance reference (for multi-cluster).
+                  Empty = default.
+                type: string
               name:
                 description: Display name in Forge. Defaults to metadata.name.
                 type: string
               organization:
+                description: Forge organization name. Required.
                 type: string
-              variables:
-                description: Free-form inventory-wide variables (YAML/JSON).
+              scmBranch:
+                description: Branch / revision / tag.
                 type: string
+              scmClean:
+                type: boolean
+              scmCredential:
+                description: SCM credential name (looked up in Forge). Empty = public/no
+                  auth.
+                type: string
+              scmDeleteOnUpdate:
+                type: boolean
+              scmRefspec:
+                description: Refspec (git only). Useful for fetching PR refs.
+                type: string
+              scmType:
+                default: git
+                description: SCM type. "manual" means a pre-populated project directory
+                  on disk.
+                enum:
+                - git
+                - hg
+                - svn
+                - insights
+                - archive
+                - manual
+                type: string
+              scmUpdateCacheTimeout:
+                description: SCM update cache TTL in seconds (Forge default 0 = always
+                  update).
+                format: int32
+                minimum: 0
+                type: integer
+              scmUpdateOnLaunch:
+                type: boolean
+              scmUrl:
+                description: Repository URL. Required for non-manual SCM types.
+                type: string
+              timeout:
+                description: Timeout in seconds for SCM update (0 = Forge default).
+                format: int32
+                minimum: 0
+                type: integer
             required:
             - organization
             type: object
           status:
-            description: InventoryStatus reflects the observed Forge state.
+            description: ProjectStatus reflects observed state in Forge.
             properties:
               conditions:
                 items:
@@ -193,15 +193,13 @@ spec:
               forgeId:
                 format: int64
                 type: integer
-              groupCount:
-                format: int32
-                type: integer
-              hostCount:
-                format: int32
-                type: integer
               observedGeneration:
                 format: int64
                 type: integer
+              scmRevision:
+                description: Last SCM update status reported by Forge (successful
+                  / failed / never).
+                type: string
             type: object
         type: object
     served: true

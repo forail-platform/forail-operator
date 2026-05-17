@@ -1,0 +1,20 @@
+apiVersion: forge.forgeplatform.io/v1alpha1
+kind: Project
+metadata:
+  name: ansible-collection-mycorp
+  namespace: default
+spec:
+  description: "Internal Ansible roles + playbooks"
+  organization: Default
+  scmType: git
+  scmUrl: https://github.com/mycorp/ansible-collection.git
+  scmBranch: main
+  # scmCredential is optional — set to a Forge credential name when the
+  # repo requires SSH or HTTPS basic auth. Public repos work without it.
+  # scmCredential: github-deploy-key
+  scmClean: true
+  scmDeleteOnUpdate: false
+  scmUpdateOnLaunch: true
+  scmUpdateCacheTimeout: 0
+  allowOverride: false
+  timeout: 0

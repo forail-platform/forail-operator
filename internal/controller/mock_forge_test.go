@@ -149,6 +149,39 @@ func (m *mockForge) handle(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "GET" && path == "/api/v2/projects/":
 		m.calls["GET projects"]++
 		w.Write(listEnvelope(findByName(m.projects, q)))
+	case r.Method == "POST" && path == "/api/v2/projects/":
+		m.calls["POST projects"]++
+		var b map[string]any
+		json.NewDecoder(r.Body).Decode(&b)
+		id := m.nextID
+		m.nextID++
+		b["id"] = id
+		m.projects[id] = b
+		writeJSON(w, http.StatusCreated, b)
+	case strings.HasPrefix(path, "/api/v2/projects/"):
+		id, _ := idFromPath(path, "/api/v2/projects/")
+		switch r.Method {
+		case "GET":
+			m.calls["GET project"]++
+			if v, ok := m.projects[id]; ok {
+				writeJSON(w, http.StatusOK, v)
+			} else {
+				http.NotFound(w, r)
+			}
+		case "PATCH":
+			m.calls["PATCH project"]++
+			var b map[string]any
+			json.NewDecoder(r.Body).Decode(&b)
+			cur := m.projects[id]
+			for k, v := range b {
+				cur[k] = v
+			}
+			writeJSON(w, http.StatusOK, cur)
+		case "DELETE":
+			m.calls["DELETE project"]++
+			delete(m.projects, id)
+			w.WriteHeader(http.StatusNoContent)
+		}
 
 	// --- inventories ---
 	case r.Method == "GET" && path == "/api/v2/inventories/":
