@@ -25,6 +25,9 @@ type mockForge struct {
 	organizations   map[int64]map[string]any
 	credentialTypes map[int64]map[string]any
 	projects        map[int64]map[string]any
+	teams           map[int64]map[string]any
+	users           map[int64]map[string]any
+	teamUsers       map[int64]map[int64]struct{} // team ID -> set of user IDs
 
 	inventories  map[int64]map[string]any
 	hosts        map[int64]map[string]any
@@ -46,6 +49,9 @@ func newMockForge() *mockForge {
 		organizations:   map[int64]map[string]any{},
 		credentialTypes: map[int64]map[string]any{},
 		projects:        map[int64]map[string]any{},
+		teams:           map[int64]map[string]any{},
+		users:           map[int64]map[string]any{},
+		teamUsers:       map[int64]map[int64]struct{}{},
 		inventories:     map[int64]map[string]any{},
 		hosts:           map[int64]map[string]any{},
 		groups:          map[int64]map[string]any{},
@@ -61,7 +67,19 @@ func newMockForge() *mockForge {
 	m.organizations[1] = map[string]any{"id": int64(1), "name": "Default"}
 	m.credentialTypes[1] = map[string]any{"id": int64(1), "name": "Machine", "kind": "ssh"}
 	m.projects[1] = map[string]any{"id": int64(1), "name": "Demo Project", "organization": int64(1)}
+	m.users[1] = map[string]any{"id": int64(1), "username": "admin"}
 	return m
+}
+
+// usersByUsername returns users matching the given username (or all if empty).
+func usersByUsername(m map[int64]map[string]any, username string) []map[string]any {
+	out := []map[string]any{}
+	for _, v := range m {
+		if username == "" || v["username"] == username {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // CallCount returns how many times handlerKey was hit.
@@ -143,6 +161,39 @@ func (m *mockForge) handle(w http.ResponseWriter, r *http.Request) {
 	case r.Method == "GET" && path == "/api/v2/organizations/":
 		m.calls["GET organizations"]++
 		w.Write(listEnvelope(findByName(m.organizations, q)))
+	case r.Method == "POST" && path == "/api/v2/organizations/":
+		m.calls["POST organizations"]++
+		var b map[string]any
+		json.NewDecoder(r.Body).Decode(&b)
+		id := m.nextID
+		m.nextID++
+		b["id"] = id
+		m.organizations[id] = b
+		writeJSON(w, http.StatusCreated, b)
+	case strings.HasPrefix(path, "/api/v2/organizations/"):
+		id, _ := idFromPath(path, "/api/v2/organizations/")
+		switch r.Method {
+		case "GET":
+			m.calls["GET organization"]++
+			if v, ok := m.organizations[id]; ok {
+				writeJSON(w, http.StatusOK, v)
+			} else {
+				http.NotFound(w, r)
+			}
+		case "PATCH":
+			m.calls["PATCH organization"]++
+			var b map[string]any
+			json.NewDecoder(r.Body).Decode(&b)
+			cur := m.organizations[id]
+			for k, v := range b {
+				cur[k] = v
+			}
+			writeJSON(w, http.StatusOK, cur)
+		case "DELETE":
+			m.calls["DELETE organization"]++
+			delete(m.organizations, id)
+			w.WriteHeader(http.StatusNoContent)
+		}
 	case r.Method == "GET" && path == "/api/v2/credential_types/":
 		m.calls["GET credential_types"]++
 		w.Write(listEnvelope(findByName(m.credentialTypes, q)))
@@ -281,6 +332,79 @@ func (m *mockForge) handle(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(path, "/api/v2/job_templates/"):
 		m.handleJobTemplateNested(w, r, path)
 		return
+
+	// --- teams ---
+	case r.Method == "GET" && path == "/api/v2/teams/":
+		m.calls["GET teams"]++
+		w.Write(listEnvelope(findByName(m.teams, q)))
+	case r.Method == "POST" && path == "/api/v2/teams/":
+		m.calls["POST teams"]++
+		var b map[string]any
+		json.NewDecoder(r.Body).Decode(&b)
+		id := m.nextID
+		m.nextID++
+		b["id"] = id
+		m.teams[id] = b
+		m.teamUsers[id] = map[int64]struct{}{}
+		writeJSON(w, http.StatusCreated, b)
+	case strings.HasPrefix(path, "/api/v2/teams/"):
+		id, tail := idFromPath(path, "/api/v2/teams/")
+		switch {
+		case tail == "/" || tail == "":
+			switch r.Method {
+			case "GET":
+				m.calls["GET team"]++
+				if v, ok := m.teams[id]; ok {
+					writeJSON(w, http.StatusOK, v)
+				} else {
+					http.NotFound(w, r)
+				}
+			case "PATCH":
+				m.calls["PATCH team"]++
+				var b map[string]any
+				json.NewDecoder(r.Body).Decode(&b)
+				cur := m.teams[id]
+				for k, v := range b {
+					cur[k] = v
+				}
+				writeJSON(w, http.StatusOK, cur)
+			case "DELETE":
+				m.calls["DELETE team"]++
+				delete(m.teams, id)
+				delete(m.teamUsers, id)
+				w.WriteHeader(http.StatusNoContent)
+			}
+		case strings.HasPrefix(tail, "/users/"):
+			switch r.Method {
+			case "GET":
+				m.calls["GET team users"]++
+				items := []map[string]any{}
+				for uid := range m.teamUsers[id] {
+					if u, ok := m.users[uid]; ok {
+						items = append(items, u)
+					}
+				}
+				w.Write(listEnvelope(items))
+			case "POST":
+				var b map[string]any
+				json.NewDecoder(r.Body).Decode(&b)
+				uid := int64(b["id"].(float64))
+				if d, ok := b["disassociate"]; ok && d.(bool) {
+					m.calls["DISASSOCIATE team user"]++
+					delete(m.teamUsers[id], uid)
+				} else {
+					m.calls["ASSOCIATE team user"]++
+					m.teamUsers[id][uid] = struct{}{}
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}
+		}
+
+	// --- users (username lookup only) ---
+	case r.Method == "GET" && path == "/api/v2/users/":
+		m.calls["GET users"]++
+		username := r.URL.Query().Get("username")
+		w.Write(listEnvelope(usersByUsername(m.users, username)))
 
 	// --- schedules ---
 	case r.Method == "GET" && path == "/api/v2/schedules/":

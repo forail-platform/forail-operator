@@ -1,0 +1,9 @@
+apiVersion: forge.forgeplatform.io/v1alpha1
+kind: Organization
+metadata:
+  name: platform-team
+  namespace: default
+spec:
+  description: "Platform engineering — shared automation tier"
+  maxHosts: 500
+  # defaultEnvironment: forge-ee-2026.04

@@ -117,6 +117,18 @@ func newManager(t *testing.T, ctx context.Context, forgeURL, forgeToken string) 
 		Complete(&ProjectReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
 		t.Fatalf("setup project: %v", err)
 	}
+	if err := ctrl.NewControllerManagedBy(mgr).
+		For(&forgev1.Organization{}).
+		Named("organization" + suffix).
+		Complete(&OrganizationReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
+		t.Fatalf("setup organization: %v", err)
+	}
+	if err := ctrl.NewControllerManagedBy(mgr).
+		For(&forgev1.Team{}).
+		Named("team" + suffix).
+		Complete(&TeamReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
+		t.Fatalf("setup team: %v", err)
+	}
 
 	mgrCtx, cancel := context.WithCancel(ctx)
 	mgrDone := make(chan struct{})

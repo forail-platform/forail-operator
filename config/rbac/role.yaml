@@ -18,8 +18,10 @@ rules:
   - credentials
   - inventories
   - jobtemplates
+  - organizations
   - projects
   - schedules
+  - teams
   verbs:
   - create
   - delete
@@ -34,8 +36,10 @@ rules:
   - credentials/finalizers
   - inventories/finalizers
   - jobtemplates/finalizers
+  - organizations/finalizers
   - projects/finalizers
   - schedules/finalizers
+  - teams/finalizers
   verbs:
   - update
 - apiGroups:
@@ -44,8 +48,10 @@ rules:
   - credentials/status
   - inventories/status
   - jobtemplates/status
+  - organizations/status
   - projects/status
   - schedules/status
+  - teams/status
   verbs:
   - get
   - patch

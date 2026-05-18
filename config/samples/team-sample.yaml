@@ -1,0 +1,12 @@
+apiVersion: forge.forgeplatform.io/v1alpha1
+kind: Team
+metadata:
+  name: platform-oncall
+  namespace: default
+spec:
+  description: "Platform on-call rotation — RBAC binding target"
+  organization: Default
+  users:
+    - admin
+    # add Forge usernames here; the controller maintains team membership
+    # via /api/v2/teams/{id}/users/ on every reconcile (60s drift loop).
