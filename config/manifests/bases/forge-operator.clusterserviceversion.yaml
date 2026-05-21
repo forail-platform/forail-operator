@@ -1,0 +1,250 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: forge-operator.v1.0.0
+  namespace: placeholder
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "forge.forgeplatform.io/v1alpha1",
+          "kind": "Organization",
+          "metadata": { "name": "platform-team" },
+          "spec": { "description": "Platform engineering", "maxHosts": 500 }
+        },
+        {
+          "apiVersion": "forge.forgeplatform.io/v1alpha1",
+          "kind": "Project",
+          "metadata": { "name": "platform-roles" },
+          "spec": {
+            "organization": "Default",
+            "scmType": "git",
+            "scmUrl": "https://github.com/mycorp/ansible.git",
+            "scmBranch": "main"
+          }
+        },
+        {
+          "apiVersion": "forge.forgeplatform.io/v1alpha1",
+          "kind": "Team",
+          "metadata": { "name": "platform-oncall" },
+          "spec": { "organization": "Default", "users": ["admin"] }
+        },
+        {
+          "apiVersion": "forge.forgeplatform.io/v1alpha1",
+          "kind": "Workflow",
+          "metadata": { "name": "build-and-deploy" },
+          "spec": {
+            "organization": "Default",
+            "nodes": [
+              { "identifier": "build", "unifiedJobTemplate": "Provision EC2", "successNodes": ["deploy"] },
+              { "identifier": "deploy", "unifiedJobTemplate": "Deploy App" }
+            ]
+          }
+        },
+        {
+          "apiVersion": "forge.forgeplatform.io/v1alpha1",
+          "kind": "ForgeInstance",
+          "metadata": { "name": "forge-eu" },
+          "spec": {
+            "url": "https://forge-eu.example.com",
+            "tokenSecretRef": { "name": "forge-eu-token", "key": "token" }
+          }
+        }
+      ]
+    capabilities: Deep Insights
+    categories: "Application Runtime,Integration & Delivery"
+    repository: https://github.com/forgeplatform/forge-operator
+    support: forgeplatform
+    description: |
+      Manage Forge automation resources declaratively from Kubernetes.
+spec:
+  displayName: Forge Operator
+  description: |
+    The Forge Operator reconciles native Forge Platform resources
+    (Organizations, Teams, Projects, Inventories, Credentials,
+    JobTemplates, Schedules, Workflows) declared as Kubernetes Custom
+    Resources, calling the Forge REST API to converge desired state.
+
+    Features:
+
+    * Nine CRDs spanning the full Forge resource model
+    * Multi-cluster routing via `ForgeInstance` CR — each CR can target
+      a different Forge backend by name + Secret-stored bearer token
+    * Workflow CRD with declarative DAG (nodes + success/failure/always
+      edges) reconciled against `/workflow_job_template_nodes/`
+    * Finalizer-driven cleanup (deleting a CR removes the resource in
+      Forge unless the cluster is unreachable)
+    * 60-second drift reconcile that re-asserts desired state if the
+      Forge UI mutates a managed resource
+
+  keywords:
+    - ansible
+    - automation
+    - forge
+    - awx
+    - playbook
+    - infrastructure-as-code
+  maintainers:
+    - name: Forge Platform
+      email: opensource@forgeplatform.io
+  provider:
+    name: Forge Platform
+    url: https://forgeplatform.github.io
+  links:
+    - name: Documentation
+      url: https://forgeplatform.github.io
+    - name: Source
+      url: https://github.com/forgeplatform/forge-operator
+  maturity: alpha
+  version: 1.0.0
+  minKubeVersion: 1.27.0
+  installModes:
+    - supported: false
+      type: OwnNamespace
+    - supported: false
+      type: SingleNamespace
+    - supported: false
+      type: MultiNamespace
+    - supported: true
+      type: AllNamespaces
+  install:
+    strategy: deployment
+    spec:
+      clusterPermissions:
+        - serviceAccountName: forge-operator
+          rules:
+            - apiGroups: ["forge.forgeplatform.io"]
+              resources:
+                - jobtemplates
+                - inventories
+                - credentials
+                - schedules
+                - projects
+                - organizations
+                - teams
+                - workflows
+                - forgeinstances
+              verbs: [get, list, watch, create, update, patch, delete]
+            - apiGroups: ["forge.forgeplatform.io"]
+              resources:
+                - jobtemplates/status
+                - inventories/status
+                - credentials/status
+                - schedules/status
+                - projects/status
+                - organizations/status
+                - teams/status
+                - workflows/status
+                - forgeinstances/status
+              verbs: [get, update, patch]
+            - apiGroups: ["forge.forgeplatform.io"]
+              resources:
+                - jobtemplates/finalizers
+                - inventories/finalizers
+                - credentials/finalizers
+                - schedules/finalizers
+                - projects/finalizers
+                - organizations/finalizers
+                - teams/finalizers
+                - workflows/finalizers
+              verbs: [update]
+            - apiGroups: [""]
+              resources: [secrets]
+              verbs: [get, list, watch]
+            - apiGroups: [""]
+              resources: [events]
+              verbs: [create, patch]
+            - apiGroups: ["coordination.k8s.io"]
+              resources: [leases]
+              verbs: [get, create, update]
+      deployments:
+        - name: forge-operator
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app.kubernetes.io/name: forge-operator
+            template:
+              metadata:
+                labels:
+                  app.kubernetes.io/name: forge-operator
+              spec:
+                serviceAccountName: forge-operator
+                containers:
+                  - name: manager
+                    image: krlex/forge-operator:v1.0.0
+                    args:
+                      - --leader-elect
+                    env:
+                      - name: FORGE_URL
+                        valueFrom:
+                          secretKeyRef:
+                            name: forge-operator-default
+                            key: url
+                      - name: FORGE_TOKEN
+                        valueFrom:
+                          secretKeyRef:
+                            name: forge-operator-default
+                            key: token
+                    livenessProbe:
+                      httpGet:
+                        path: /healthz
+                        port: 8081
+                    readinessProbe:
+                      httpGet:
+                        path: /readyz
+                        port: 8081
+                    resources:
+                      requests:
+                        cpu: 100m
+                        memory: 128Mi
+                      limits:
+                        cpu: 500m
+                        memory: 256Mi
+  customresourcedefinitions:
+    owned:
+      - name: organizations.forge.forgeplatform.io
+        version: v1alpha1
+        kind: Organization
+        displayName: Organization
+        description: A Forge organization — top-level tenant container.
+      - name: teams.forge.forgeplatform.io
+        version: v1alpha1
+        kind: Team
+        displayName: Team
+        description: A Forge team within an organization, with declarative user membership.
+      - name: projects.forge.forgeplatform.io
+        version: v1alpha1
+        kind: Project
+        displayName: Project
+        description: A Forge project (SCM-backed source of playbooks).
+      - name: inventories.forge.forgeplatform.io
+        version: v1alpha1
+        kind: Inventory
+        displayName: Inventory
+        description: A Forge inventory of hosts and groups.
+      - name: credentials.forge.forgeplatform.io
+        version: v1alpha1
+        kind: Credential
+        displayName: Credential
+        description: A Forge credential — inputs sourced from k8s Secrets via inputsFrom.
+      - name: jobtemplates.forge.forgeplatform.io
+        version: v1alpha1
+        kind: JobTemplate
+        displayName: JobTemplate
+        description: A Forge job template.
+      - name: workflows.forge.forgeplatform.io
+        version: v1alpha1
+        kind: Workflow
+        displayName: Workflow
+        description: A Forge workflow job template with declarative DAG of nodes.
+      - name: schedules.forge.forgeplatform.io
+        version: v1alpha1
+        kind: Schedule
+        displayName: Schedule
+        description: A Forge schedule (RFC 5545 RRULE-driven recurring job).
+      - name: forgeinstances.forge.forgeplatform.io
+        version: v1alpha1
+        kind: ForgeInstance
+        displayName: ForgeInstance
+        description: A managed Forge backend that other CRs reference via spec.forgeInstance.

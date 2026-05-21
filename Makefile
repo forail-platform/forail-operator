@@ -67,3 +67,48 @@ run:
 		--forge-user=$$FORGE_USER \
 		--forge-password=$$FORGE_PASSWORD \
 		--forge-insecure-skip-verify
+
+# --- OLM bundle + catalog ---
+#
+# Bundle wraps the operator manifests (CSV + CRDs) into an OCI image that
+# an OLM CatalogSource can serve. Catalog is a file-based catalog (FBC)
+# image listing one or more bundle versions.
+
+VERSION     ?= 1.0.0
+BUNDLE_IMG  ?= krlex/forge-operator-bundle:v$(VERSION)
+CATALOG_IMG ?= krlex/forge-operator-catalog:v$(VERSION)
+
+.PHONY: bundle
+bundle: manifests
+	# Refresh bundle/manifests with the latest CRDs and the CSV base.
+	rm -rf bundle/manifests
+	mkdir -p bundle/manifests
+	cp config/crd/bases/*.yaml bundle/manifests/
+	cp config/manifests/bases/forge-operator.clusterserviceversion.yaml bundle/manifests/
+
+.PHONY: bundle-build
+bundle-build:
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: bundle-push
+bundle-push:
+	docker push $(BUNDLE_IMG)
+
+# Validate bundle layout (requires operator-sdk).
+.PHONY: bundle-validate
+bundle-validate:
+	@command -v operator-sdk >/dev/null || { echo "operator-sdk required"; exit 1; }
+	operator-sdk bundle validate ./bundle --select-optional name=operatorhub
+
+# Build a file-based catalog image referencing the bundle. For a
+# multi-version catalog, re-run with --bundles "$(BUNDLE_IMG_v1.0.0),$(BUNDLE_IMG_v1.1.0)".
+.PHONY: catalog-build
+catalog-build:
+	@command -v opm >/dev/null || { echo "opm required (https://github.com/operator-framework/operator-registry)"; exit 1; }
+	opm index add --container-tool docker \
+		--bundles $(BUNDLE_IMG) \
+		--tag $(CATALOG_IMG)
+
+.PHONY: catalog-push
+catalog-push:
+	docker push $(CATALOG_IMG)

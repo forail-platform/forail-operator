@@ -1,9 +1,9 @@
 apiVersion: v2
 name: forge-operator
-description: Kubernetes operator for the Forge automation platform — declarative JobTemplate, Inventory CRDs synced to Forge REST API
+description: Kubernetes operator for the Forge automation platform — declarative Organization, Team, Project, Inventory, Credential, JobTemplate, Schedule, Workflow, and ForgeInstance CRDs synced to the Forge REST API (multi-cluster capable)
 type: application
-version: 0.3.0
-appVersion: "0.3.0"
+version: 1.0.0
+appVersion: "1.0.0"
 home: https://forgeplatform.github.io
 sources:
   - https://github.com/forgeplatform/forge-operator

@@ -8,6 +8,64 @@ and the project uses SemVer.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-05-21
+
+### Added
+- **5 new CRDs** completing the Forge resource model:
+  - `Project` — SCM-backed source of playbooks, optional credential +
+    execution-environment refs (`api/v1alpha1/project_types.go`,
+    `internal/controller/project_controller.go`).
+  - `Organization` — top-level tenant container with max-host quota
+    and default-EE reference.
+  - `Team` — namespaced team within an organization, with declarative
+    `spec.users[]` membership reconciled against
+    `/api/v2/teams/{id}/users/`.
+  - `Workflow` — workflow_job_template wrapper with a declarative DAG
+    of nodes (`spec.nodes[]` keyed by `identifier`) and edges
+    (`successNodes`, `failureNodes`, `alwaysNodes`). The reconciler
+    diffs against `/workflow_job_template_nodes/` + each node's
+    `success_nodes/failure_nodes/always_nodes` sub-relation.
+  - `ForgeInstance` — describes a Forge backend (URL + bearer token
+    via `tokenSecretRef`) that other CRs can target by name via
+    `spec.forgeInstance`.
+- **Multi-cluster support** via `forgeapi.ClientPool`: per-CR
+  resolution of which Forge backend to write to. CRs without
+  `spec.forgeInstance` fall back to the default client supplied via
+  `--forge-url` / `--forge-token`. Cache invalidation hooks into the
+  ForgeInstance reconciler so spec changes (Generation bump) rebuild
+  the client lazily.
+- **OLM packaging**:
+  - `config/manifests/bases/forge-operator.clusterserviceversion.yaml`
+    — CSV with `alm-examples`, `customresourcedefinitions.owned`
+    entries for all 9 CRDs, deployment spec, and cluster-scoped RBAC.
+  - `bundle.Dockerfile` + `bundle/metadata/annotations.yaml`
+    (registry+v1, alpha channel default) build a bundle image.
+  - `Makefile` targets: `bundle`, `bundle-build`, `bundle-push`,
+    `bundle-validate`, `catalog-build`, `catalog-push` (uses `opm` for
+    the catalog index).
+- Helm chart RBAC extended for all 9 CRD verbs (incl. /status and
+  /finalizers subresources).
+- envtest lifecycle tests for Project, Organization, Team, Workflow,
+  and ForgeInstance reconcilers — covering create, drift PATCH, and
+  finalizer-driven delete; Workflow test verifies DAG edge
+  association.
+
+### Changed
+- All existing reconcilers (`JobTemplate`, `Inventory`, `Credential`,
+  `Schedule`) and the new ones accept a `Pool` field alongside the
+  existing `Forge` client. Per-reconcile, the right client is selected
+  via the `clientFor()` helper. No behavior change for CRs that omit
+  `spec.forgeInstance` — they continue to use the default backend.
+- `ForgeInstanceReconciler` probes `/api/v2/ping/` every 60 seconds
+  and surfaces `reachable` + `serverVersion` in status.
+
+### Breaking
+- None at the API level (existing CRs continue to reconcile unchanged
+  against the default Forge backend). Operator deployment now requires
+  the new RBAC for the 5 added CRDs — re-apply
+  `helm/templates/rbac.yaml` (or the OLM CSV's clusterPermissions) on
+  upgrade.
+
 ## [0.3.1] - 2026-04-29
 
 ### Added
