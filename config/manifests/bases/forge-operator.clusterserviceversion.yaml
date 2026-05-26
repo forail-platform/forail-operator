@@ -101,6 +101,8 @@ metadata:
     categories: "Application Runtime,Integration & Delivery"
     repository: https://github.com/forgeplatform/forge-operator
     support: forgeplatform
+    containerImage: ghcr.io/forgeplatform/forge-operator:1.0.0
+    createdAt: "2026-05-26T11:00:00Z"
     description: |
       Manage Forge automation resources declaratively from Kubernetes.
 spec:
@@ -134,8 +136,8 @@ spec:
     - playbook
     - infrastructure-as-code
   maintainers:
-    - name: Forge Platform
-      email: opensource@forgeplatform.io
+    - name: Krstan Vjestica
+      email: office@krletron.xyz
   provider:
     name: Forge Platform
     url: https://forgeplatform.github.io
@@ -221,7 +223,7 @@ spec:
                 serviceAccountName: forge-operator
                 containers:
                   - name: manager
-                    image: krlex/forge-operator:v1.0.0
+                    image: ghcr.io/forgeplatform/forge-operator:1.0.0
                     args:
                       - --leader-elect
                     env:
