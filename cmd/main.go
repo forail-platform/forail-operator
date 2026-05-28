@@ -51,8 +51,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	if forgeURL == "" || forgeToken == "" {
-		setupLog.Error(nil, "missing Forge API config — set --forge-url and --forge-token (or FORGE_URL / FORGE_TOKEN env)")
-		os.Exit(1)
+		setupLog.Info("no default Forge backend configured; CRs without spec.forgeInstance will not reconcile until --forge-url and --forge-token (or FORGE_URL / FORGE_TOKEN env) are set")
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
