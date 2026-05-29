@@ -232,11 +232,13 @@ spec:
                           secretKeyRef:
                             name: forge-operator-default
                             key: url
+                            optional: true
                       - name: FORGE_TOKEN
                         valueFrom:
                           secretKeyRef:
                             name: forge-operator-default
                             key: token
+                            optional: true
                     livenessProbe:
                       httpGet:
                         path: /healthz
