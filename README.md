@@ -1,5 +1,7 @@
 # forge-operator
 
+[![CI](https://github.com/forgeplatform/forge-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/forgeplatform/forge-operator/actions/workflows/ci.yml)
+
 A Kubernetes operator that reconciles native Forge Platform resources
 (Organizations, Teams, Projects, Inventories, Credentials, JobTemplates,
 Schedules, Workflows) declared as Kubernetes Custom Resources. Each CR is
