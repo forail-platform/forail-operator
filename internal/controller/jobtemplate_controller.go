@@ -16,17 +16,7 @@ import (
 	"github.com/forgeplatform/forge-operator/internal/forgeapi"
 )
 
-const (
-	finalizer = "jobtemplate.forge.forgeplatform.io/finalizer"
-
-	conditionReady  = "Ready"
-	conditionSynced = "Synced"
-
-	reasonReconciling = "Reconciling"
-	reasonResolveErr  = "ResolveError"
-	reasonAPIError    = "ForgeAPIError"
-	reasonInSync      = "InSync"
-)
+const finalizer = "jobtemplate.forge.forgeplatform.io/finalizer"
 
 // JobTemplateReconciler reconciles a JobTemplate CR with Forge.
 type JobTemplateReconciler struct {
