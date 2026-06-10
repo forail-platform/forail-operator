@@ -44,11 +44,11 @@ type WorkflowNode struct {
 	ExtraData string `json:"extraData,omitempty"`
 }
 
-// WorkflowSpec mirrors Forge `/api/v2/workflow_job_templates/` plus a
+// WorkflowSpec mirrors Forail `/api/v2/workflow_job_templates/` plus a
 // declarative list of nodes that the controller reconciles to/from
 // `/workflow_job_template_nodes/`.
 type WorkflowSpec struct {
-	// Display name in Forge. Defaults to metadata.name.
+	// Display name in Forail. Defaults to metadata.name.
 	// +optional
 	Name string `json:"name,omitempty"`
 
@@ -86,14 +86,14 @@ type WorkflowSpec struct {
 	// +listMapKey=identifier
 	Nodes []WorkflowNode `json:"nodes,omitempty"`
 
-	// Optional ForgeInstance reference (for multi-cluster). Empty = default.
+	// Optional ForailInstance reference (for multi-cluster). Empty = default.
 	// +optional
-	ForgeInstance string `json:"forgeInstance,omitempty"`
+	ForailInstance string `json:"forailInstance,omitempty"`
 }
 
 type WorkflowStatus struct {
 	// +optional
-	ForgeID int64 `json:"forgeId,omitempty"`
+	ForailID int64 `json:"forailId,omitempty"`
 
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -111,8 +111,8 @@ type WorkflowStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=wf;workflow,categories=forge
-// +kubebuilder:printcolumn:name="Forge ID",type=integer,JSONPath=`.status.forgeId`
+// +kubebuilder:resource:shortName=wf;workflow,categories=forail
+// +kubebuilder:printcolumn:name="Forail ID",type=integer,JSONPath=`.status.forailId`
 // +kubebuilder:printcolumn:name="Organization",type=string,JSONPath=`.spec.organization`
 // +kubebuilder:printcolumn:name="Nodes",type=integer,JSONPath=`.status.nodeCount`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`

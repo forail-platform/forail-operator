@@ -1,4 +1,4 @@
-apiVersion: forge.forgeplatform.io/v1alpha1
+apiVersion: forail.forail-platform.io/v1alpha1
 kind: Workflow
 metadata:
   name: provision-and-deploy

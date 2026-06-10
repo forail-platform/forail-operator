@@ -4,9 +4,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ScheduleSpec defines the desired state of a Forge Schedule.
+// ScheduleSpec defines the desired state of a Forail Schedule.
 //
-// Forge schedules attach to a "unified job template" (JobTemplate or
+// Forail schedules attach to a "unified job template" (JobTemplate or
 // WorkflowJobTemplate). MVP supports only JobTemplate references.
 type ScheduleSpec struct {
 	// +optional
@@ -15,7 +15,7 @@ type ScheduleSpec struct {
 	// +optional
 	Description string `json:"description,omitempty"`
 
-	// JobTemplate is the name of the JobTemplate (Forge entity) this
+	// JobTemplate is the name of the JobTemplate (Forail entity) this
 	// schedule fires. Operator resolves it to a numeric ID.
 	// +kubebuilder:validation:Required
 	JobTemplate string `json:"jobTemplate"`
@@ -37,16 +37,16 @@ type ScheduleSpec struct {
 	ExtraData string `json:"extraData,omitempty"`
 }
 
-// ScheduleStatus reflects the observed Forge state.
+// ScheduleStatus reflects the observed Forail state.
 type ScheduleStatus struct {
 	// +optional
-	ForgeID int64 `json:"forgeId,omitempty"`
+	ForailID int64 `json:"forailId,omitempty"`
 
-	// JobTemplateID is the resolved Forge ID of the referenced JT.
+	// JobTemplateID is the resolved Forail ID of the referenced JT.
 	// +optional
 	JobTemplateID int64 `json:"jobTemplateId,omitempty"`
 
-	// NextRun is the next scheduled execution time as reported by Forge.
+	// NextRun is the next scheduled execution time as reported by Forail.
 	// +optional
 	NextRun string `json:"nextRun,omitempty"`
 
@@ -61,8 +61,8 @@ type ScheduleStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=sch,categories=forge
-// +kubebuilder:printcolumn:name="Forge ID",type=integer,JSONPath=`.status.forgeId`
+// +kubebuilder:resource:shortName=sch,categories=forail
+// +kubebuilder:printcolumn:name="Forail ID",type=integer,JSONPath=`.status.forailId`
 // +kubebuilder:printcolumn:name="JobTemplate",type=string,JSONPath=`.spec.jobTemplate`
 // +kubebuilder:printcolumn:name="Enabled",type=boolean,JSONPath=`.spec.enabled`
 // +kubebuilder:printcolumn:name="Next Run",type=string,JSONPath=`.status.nextRun`

@@ -1,9 +1,9 @@
-# forge-operator — build & deploy targets.
+# forail-operator — build & deploy targets.
 #
 # All commands assume Go 1.23+ and kubectl on PATH (or running inside the
 # k8s-m1 vagrant VM where they're installed).
 
-IMAGE ?= krlex/forge-operator:latest
+IMAGE ?= krlex/forail-operator:latest
 
 .PHONY: tidy
 tidy:
@@ -63,10 +63,10 @@ undeploy:
 run:
 	# Run the operator out-of-cluster against the kubeconfig in $KUBECONFIG.
 	go run ./cmd \
-		--forge-url=$$FORGE_URL \
-		--forge-user=$$FORGE_USER \
-		--forge-password=$$FORGE_PASSWORD \
-		--forge-insecure-skip-verify
+		--forail-url=$$FORAIL_URL \
+		--forail-user=$$FORAIL_USER \
+		--forail-password=$$FORAIL_PASSWORD \
+		--forail-insecure-skip-verify
 
 # --- OLM bundle + catalog ---
 #
@@ -75,8 +75,8 @@ run:
 # image listing one or more bundle versions.
 
 VERSION     ?= 1.0.0
-BUNDLE_IMG  ?= krlex/forge-operator-bundle:v$(VERSION)
-CATALOG_IMG ?= krlex/forge-operator-catalog:v$(VERSION)
+BUNDLE_IMG  ?= krlex/forail-operator-bundle:v$(VERSION)
+CATALOG_IMG ?= krlex/forail-operator-catalog:v$(VERSION)
 
 .PHONY: bundle
 bundle: manifests
@@ -84,7 +84,7 @@ bundle: manifests
 	rm -rf bundle/manifests
 	mkdir -p bundle/manifests
 	cp config/crd/bases/*.yaml bundle/manifests/
-	cp config/manifests/bases/forge-operator.clusterserviceversion.yaml bundle/manifests/
+	cp config/manifests/bases/forail-operator.clusterserviceversion.yaml bundle/manifests/
 
 .PHONY: bundle-build
 bundle-build:

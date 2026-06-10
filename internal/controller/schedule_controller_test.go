@@ -8,11 +8,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
 )
 
 func TestScheduleLifecycle(t *testing.T) {
-	mock := newMockForge()
+	mock := newMockForail()
 	srv, _ := mock.start(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -32,9 +32,9 @@ func TestScheduleLifecycle(t *testing.T) {
 	}
 	mock.mu.Unlock()
 
-	cr := &forgev1.Schedule{
+	cr := &forailv1.Schedule{
 		ObjectMeta: metav1.ObjectMeta{Name: "nightly", Namespace: "default"},
-		Spec: forgev1.ScheduleSpec{
+		Spec: forailv1.ScheduleSpec{
 			JobTemplate: "deploy-web",
 			RRule:       "DTSTART:20260101T020000Z RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO",
 			ExtraData:   "k: v",
@@ -45,13 +45,13 @@ func TestScheduleLifecycle(t *testing.T) {
 	}
 
 	if !pollUntil(t, 15*time.Second, func() bool {
-		var got forgev1.Schedule
+		var got forailv1.Schedule
 		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "nightly", Namespace: "default"}, &got); err != nil {
 			return false
 		}
-		return got.Status.ForgeID > 0
+		return got.Status.ForailID > 0
 	}) {
-		t.Fatal("timeout: schedule ForgeID not set")
+		t.Fatal("timeout: schedule ForailID not set")
 	}
 
 	if mock.CallCount("POST schedules") != 1 {
@@ -59,7 +59,7 @@ func TestScheduleLifecycle(t *testing.T) {
 	}
 
 	// next_run should be propagated.
-	var got forgev1.Schedule
+	var got forailv1.Schedule
 	_ = k8sClient.Get(ctx, types.NamespacedName{Name: "nightly", Namespace: "default"}, &got)
 	if got.Status.NextRun != "2026-04-30T02:00:00Z" {
 		t.Errorf("nextRun not propagated: got %q", got.Status.NextRun)

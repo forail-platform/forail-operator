@@ -1,25 +1,25 @@
-{{- define "forge-operator.labels" -}}
-app.kubernetes.io/name: forge-operator
+{{- define "forail-operator.labels" -}}
+app.kubernetes.io/name: forail-operator
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/part-of: forge-platform
+app.kubernetes.io/part-of: forail-platform
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end }}
 
-{{- define "forge-operator.selectorLabels" -}}
-app.kubernetes.io/name: forge-operator
+{{- define "forail-operator.selectorLabels" -}}
+app.kubernetes.io/name: forail-operator
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{- define "forge-operator.serviceAccountName" -}}
-{{- default "forge-operator" .Values.serviceAccount.name }}
+{{- define "forail-operator.serviceAccountName" -}}
+{{- default "forail-operator" .Values.serviceAccount.name }}
 {{- end }}
 
-{{- define "forge-operator.tokenSecretName" -}}
-{{- if .Values.forge.existingSecret -}}
-{{ .Values.forge.existingSecret }}
+{{- define "forail-operator.tokenSecretName" -}}
+{{- if .Values.forail.existingSecret -}}
+{{ .Values.forail.existingSecret }}
 {{- else -}}
-forge-operator-credentials
+forail-operator-credentials
 {{- end -}}
 {{- end }}

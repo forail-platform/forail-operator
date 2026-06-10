@@ -1,7 +1,7 @@
-// Package v1alpha1 contains API Schema definitions for the forge.forgeplatform.io
+// Package v1alpha1 contains API Schema definitions for the forail.forail-platform.io
 // API group.
 // +kubebuilder:object:generate=true
-// +groupName=forge.forgeplatform.io
+// +groupName=forail.forail-platform.io
 package v1alpha1
 
 import (
@@ -11,7 +11,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects.
-	GroupVersion = schema.GroupVersion{Group: "forge.forgeplatform.io", Version: "v1alpha1"}
+	GroupVersion = schema.GroupVersion{Group: "forail.forail-platform.io", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

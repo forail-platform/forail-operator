@@ -19,35 +19,35 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
-	"github.com/forgeplatform/forge-operator/internal/forgeapi"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
+	"github.com/forail-platform/forail-operator/internal/forailapi"
 )
 
 const (
-	credentialFinalizer = "credential.forge.forgeplatform.io/finalizer"
+	credentialFinalizer = "credential.forail.forail-platform.io/finalizer"
 )
 
-// CredentialReconciler reconciles a Credential CR with Forge.
+// CredentialReconciler reconciles a Credential CR with Forail.
 //
 // Sensitive fields (passwords, ssh_key_data, vault_token, etc.) come from
 // k8s Secrets via spec.inputsFrom. Non-sensitive fields (username,
 // become_method) inline in spec.inputs. The operator merges them at
-// reconcile time and PATCHes Forge.
+// reconcile time and PATCHes Forail.
 type CredentialReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Forge  *forgeapi.Client
+	Forail  *forailapi.Client
 }
 
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=credentials,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=credentials/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=credentials/finalizers,verbs=update
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=credentials,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=credentials/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=credentials/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var cr forgev1.Credential
+	var cr forailv1.Credential
 	if err := r.Get(ctx, req.NamespacedName, &cr); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -56,11 +56,11 @@ func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	if !cr.DeletionTimestamp.IsZero() {
-		if cr.Status.ForgeID > 0 {
-			if err := r.Forge.DeleteCredential(ctx, cr.Status.ForgeID); err != nil && !forgeapi.IsNotFound(err) {
+		if cr.Status.ForailID > 0 {
+			if err := r.Forail.DeleteCredential(ctx, cr.Status.ForailID); err != nil && !forailapi.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
-			logger.Info("deleted Credential from Forge", "id", cr.Status.ForgeID)
+			logger.Info("deleted Credential from Forail", "id", cr.Status.ForailID)
 		}
 		cr.Finalizers = removeString(cr.Finalizers, credentialFinalizer)
 		return ctrl.Result{}, r.Update(ctx, &cr)
@@ -75,7 +75,7 @@ func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Resolve organization.
-	orgID, err := r.Forge.ResolveOrganization(ctx, cr.Spec.Organization)
+	orgID, err := r.Forail.ResolveOrganization(ctx, cr.Spec.Organization)
 	if err != nil {
 		return r.markCredentialError(ctx, &cr, reasonResolveErr, err)
 	}
@@ -86,7 +86,7 @@ func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// Resolve credentialType (cached in status).
 	ctID := cr.Status.CredentialTypeID
 	if ctID == 0 {
-		ctID, err = r.Forge.ResolveCredentialType(ctx, cr.Spec.CredentialType)
+		ctID, err = r.Forail.ResolveCredentialType(ctx, cr.Spec.CredentialType)
 		if err != nil {
 			return r.markCredentialError(ctx, &cr, reasonResolveErr, err)
 		}
@@ -106,7 +106,7 @@ func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if desiredName == "" {
 		desiredName = cr.Name
 	}
-	desired := &forgeapi.Credential{
+	desired := &forailapi.Credential{
 		Name:           desiredName,
 		Description:    cr.Spec.Description,
 		Organization:   orgID,
@@ -114,15 +114,15 @@ func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		Inputs:         inputs,
 	}
 
-	current := (*forgeapi.Credential)(nil)
-	if cr.Status.ForgeID > 0 {
-		current, err = r.Forge.GetCredential(ctx, cr.Status.ForgeID)
-		if err != nil && !forgeapi.IsNotFound(err) {
+	current := (*forailapi.Credential)(nil)
+	if cr.Status.ForailID > 0 {
+		current, err = r.Forail.GetCredential(ctx, cr.Status.ForailID)
+		if err != nil && !forailapi.IsNotFound(err) {
 			return r.markCredentialError(ctx, &cr, reasonAPIError, err)
 		}
 	}
 	if current == nil {
-		current, err = r.Forge.FindCredentialByName(ctx, desiredName)
+		current, err = r.Forail.FindCredentialByName(ctx, desiredName)
 		if err != nil {
 			return r.markCredentialError(ctx, &cr, reasonAPIError, err)
 		}
@@ -130,28 +130,28 @@ func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	switch {
 	case current == nil:
-		created, err := r.Forge.CreateCredential(ctx, desired)
+		created, err := r.Forail.CreateCredential(ctx, desired)
 		if err != nil {
 			return r.markCredentialError(ctx, &cr, reasonAPIError, fmt.Errorf("create credential: %w", err))
 		}
 		current = created
-		logger.Info("created Credential in Forge", "id", current.ID, "name", current.Name)
+		logger.Info("created Credential in Forail", "id", current.ID, "name", current.Name)
 	case current.Name != desired.Name || current.Description != desired.Description ||
 		current.Organization != desired.Organization || current.CredentialType != desired.CredentialType ||
 		hash != cr.Status.SecretsHash:
-		updated, err := r.Forge.UpdateCredential(ctx, current.ID, desired)
+		updated, err := r.Forail.UpdateCredential(ctx, current.ID, desired)
 		if err != nil {
 			return r.markCredentialError(ctx, &cr, reasonAPIError, fmt.Errorf("update credential: %w", err))
 		}
 		current = updated
-		logger.Info("updated Credential in Forge", "id", current.ID)
+		logger.Info("updated Credential in Forail", "id", current.ID)
 	}
 
-	cr.Status.ForgeID = current.ID
+	cr.Status.ForailID = current.ID
 	cr.Status.CredentialTypeID = ctID
 	cr.Status.SecretsHash = hash
 	cr.Status.ObservedGeneration = cr.Generation
-	setCredentialCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Credential in sync with Forge")
+	setCredentialCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Credential in sync with Forail")
 	setCredentialCondition(&cr, conditionReady, metav1.ConditionTrue, reasonInSync, "")
 	if err := r.Status().Update(ctx, &cr); err != nil {
 		return ctrl.Result{}, err
@@ -161,7 +161,7 @@ func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 // assembleInputs reads referenced Secrets and merges with spec.inputs.
 // Sensitive values from Secrets take precedence on key conflict.
-func (r *CredentialReconciler) assembleInputs(ctx context.Context, cr *forgev1.Credential) (map[string]string, error) {
+func (r *CredentialReconciler) assembleInputs(ctx context.Context, cr *forailv1.Credential) (map[string]string, error) {
 	out := map[string]string{}
 	for k, v := range cr.Spec.Inputs {
 		out[k] = v
@@ -182,7 +182,7 @@ func (r *CredentialReconciler) assembleInputs(ctx context.Context, cr *forgev1.C
 }
 
 // hashInputs returns a deterministic SHA256 of the inputs map. Used to
-// detect Secret rotation without reading current Forge values (which are
+// detect Secret rotation without reading current Forail values (which are
 // encrypted at rest).
 func hashInputs(m map[string]string) string {
 	keys := make([]string, 0, len(m))
@@ -200,7 +200,7 @@ func hashInputs(m map[string]string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func (r *CredentialReconciler) markCredentialError(ctx context.Context, cr *forgev1.Credential, reason string, err error) (ctrl.Result, error) {
+func (r *CredentialReconciler) markCredentialError(ctx context.Context, cr *forailv1.Credential, reason string, err error) (ctrl.Result, error) {
 	setCredentialCondition(cr, conditionReady, metav1.ConditionFalse, reason, err.Error())
 	setCredentialCondition(cr, conditionSynced, metav1.ConditionFalse, reason, err.Error())
 	if uerr := r.Status().Update(ctx, cr); uerr != nil {
@@ -211,7 +211,7 @@ func (r *CredentialReconciler) markCredentialError(ctx context.Context, cr *forg
 
 func (r *CredentialReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Credential{}).
+		For(&forailv1.Credential{}).
 		// Watch Secrets so a kubectl edit of a referenced Secret triggers
 		// reconcile within seconds instead of waiting for the 60s
 		// requeue. Without this, rotating an SSH key required an
@@ -230,7 +230,7 @@ func (r *CredentialReconciler) credentialsReferencingSecret(ctx context.Context,
 	if !ok {
 		return nil
 	}
-	var creds forgev1.CredentialList
+	var creds forailv1.CredentialList
 	if err := r.List(ctx, &creds, client.InNamespace(sec.Namespace)); err != nil {
 		return nil
 	}
@@ -249,7 +249,7 @@ func (r *CredentialReconciler) credentialsReferencingSecret(ctx context.Context,
 	return reqs
 }
 
-func setCredentialCondition(cr *forgev1.Credential, condType string, status metav1.ConditionStatus, reason, msg string) {
+func setCredentialCondition(cr *forailv1.Credential, condType string, status metav1.ConditionStatus, reason, msg string) {
 	now := metav1.Now()
 	for i, c := range cr.Status.Conditions {
 		if c.Type == condType {

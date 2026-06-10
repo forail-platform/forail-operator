@@ -9,11 +9,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
 )
 
 func TestWorkflowLifecycle(t *testing.T) {
-	mock := newMockForge()
+	mock := newMockForail()
 	srv, _ := mock.start(t)
 
 	// Seed two JobTemplates the workflow nodes will reference.
@@ -27,12 +27,12 @@ func TestWorkflowLifecycle(t *testing.T) {
 	stop := newManager(t, ctx, srv.URL, "test-token")
 	defer stop()
 
-	cr := &forgev1.Workflow{
+	cr := &forailv1.Workflow{
 		ObjectMeta: metav1.ObjectMeta{Name: "build-and-deploy", Namespace: "default"},
-		Spec: forgev1.WorkflowSpec{
+		Spec: forailv1.WorkflowSpec{
 			Description:  "Build then deploy",
 			Organization: "Default",
-			Nodes: []forgev1.WorkflowNode{
+			Nodes: []forailv1.WorkflowNode{
 				{
 					Identifier:         "build",
 					UnifiedJobTemplate: "Provision EC2",
@@ -50,11 +50,11 @@ func TestWorkflowLifecycle(t *testing.T) {
 	}
 
 	if !pollUntil(t, 10*time.Second, func() bool {
-		var got forgev1.Workflow
+		var got forailv1.Workflow
 		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "build-and-deploy", Namespace: "default"}, &got); err != nil {
 			return false
 		}
-		return got.Status.ForgeID > 0 && got.Status.NodeCount == 2
+		return got.Status.ForailID > 0 && got.Status.NodeCount == 2
 	}) {
 		t.Fatal("timeout: workflow not fully reconciled")
 	}
@@ -80,7 +80,7 @@ func TestWorkflowLifecycle(t *testing.T) {
 		t.Fatal("timeout: DELETE workflow never called")
 	}
 	if !pollUntil(t, 10*time.Second, func() bool {
-		var x forgev1.Workflow
+		var x forailv1.Workflow
 		err := k8sClient.Get(ctx, types.NamespacedName{Name: "build-and-deploy", Namespace: "default"}, &x)
 		return apierrors.IsNotFound(err)
 	}) {

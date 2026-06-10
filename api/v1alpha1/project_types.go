@@ -4,17 +4,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ProjectSpec mirrors a subset of Forge `/api/v2/projects/`.
+// ProjectSpec mirrors a subset of Forail `/api/v2/projects/`.
 // SCM credential (if any) is referenced by name and resolved at reconcile.
 type ProjectSpec struct {
-	// Display name in Forge. Defaults to metadata.name.
+	// Display name in Forail. Defaults to metadata.name.
 	// +optional
 	Name string `json:"name,omitempty"`
 
 	// +optional
 	Description string `json:"description,omitempty"`
 
-	// Forge organization name. Required.
+	// Forail organization name. Required.
 	// +kubebuilder:validation:Required
 	Organization string `json:"organization"`
 
@@ -35,7 +35,7 @@ type ProjectSpec struct {
 	// +optional
 	ScmRefspec string `json:"scmRefspec,omitempty"`
 
-	// SCM credential name (looked up in Forge). Empty = public/no auth.
+	// SCM credential name (looked up in Forail). Empty = public/no auth.
 	// +optional
 	ScmCredential string `json:"scmCredential,omitempty"`
 
@@ -48,7 +48,7 @@ type ProjectSpec struct {
 	// +optional
 	ScmUpdateOnLaunch bool `json:"scmUpdateOnLaunch,omitempty"`
 
-	// SCM update cache TTL in seconds (Forge default 0 = always update).
+	// SCM update cache TTL in seconds (Forail default 0 = always update).
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	ScmUpdateCacheTimeout int32 `json:"scmUpdateCacheTimeout,omitempty"`
@@ -56,7 +56,7 @@ type ProjectSpec struct {
 	// +optional
 	AllowOverride bool `json:"allowOverride,omitempty"`
 
-	// Timeout in seconds for SCM update (0 = Forge default).
+	// Timeout in seconds for SCM update (0 = Forail default).
 	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Timeout int32 `json:"timeout,omitempty"`
@@ -65,20 +65,20 @@ type ProjectSpec struct {
 	// +optional
 	DefaultEnvironment string `json:"defaultEnvironment,omitempty"`
 
-	// Optional ForgeInstance reference (for multi-cluster). Empty = default.
+	// Optional ForailInstance reference (for multi-cluster). Empty = default.
 	// +optional
-	ForgeInstance string `json:"forgeInstance,omitempty"`
+	ForailInstance string `json:"forailInstance,omitempty"`
 }
 
-// ProjectStatus reflects observed state in Forge.
+// ProjectStatus reflects observed state in Forail.
 type ProjectStatus struct {
 	// +optional
-	ForgeID int64 `json:"forgeId,omitempty"`
+	ForailID int64 `json:"forailId,omitempty"`
 
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	// Last SCM update status reported by Forge (successful / failed / never).
+	// Last SCM update status reported by Forail (successful / failed / never).
 	// +optional
 	ScmRevision string `json:"scmRevision,omitempty"`
 
@@ -90,8 +90,8 @@ type ProjectStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=prj,categories=forge
-// +kubebuilder:printcolumn:name="Forge ID",type=integer,JSONPath=`.status.forgeId`
+// +kubebuilder:resource:shortName=prj,categories=forail
+// +kubebuilder:printcolumn:name="Forail ID",type=integer,JSONPath=`.status.forailId`
 // +kubebuilder:printcolumn:name="SCM",type=string,JSONPath=`.spec.scmType`
 // +kubebuilder:printcolumn:name="URL",type=string,JSONPath=`.spec.scmUrl`,priority=1
 // +kubebuilder:printcolumn:name="Branch",type=string,JSONPath=`.spec.scmBranch`,priority=1

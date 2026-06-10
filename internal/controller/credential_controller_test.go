@@ -9,11 +9,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
 )
 
 func TestCredentialLifecycle(t *testing.T) {
-	mock := newMockForge()
+	mock := newMockForail()
 	srv, _ := mock.start(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -33,15 +33,15 @@ func TestCredentialLifecycle(t *testing.T) {
 		t.Fatalf("create Secret: %v", err)
 	}
 
-	cr := &forgev1.Credential{
+	cr := &forailv1.Credential{
 		ObjectMeta: metav1.ObjectMeta{Name: "deploy-key", Namespace: "default"},
-		Spec: forgev1.CredentialSpec{
+		Spec: forailv1.CredentialSpec{
 			Description:    "machine cred",
 			Organization:   "Default",
 			CredentialType: "Machine",
 			Inputs:         map[string]string{"username": "deploy"},
-			InputsFrom: []forgev1.CredentialInputFromSecret{
-				{Name: "ssh_key_data", ValueFrom: forgev1.SecretKeyRef{Name: "ssh-key", Key: "ssh_key_data"}},
+			InputsFrom: []forailv1.CredentialInputFromSecret{
+				{Name: "ssh_key_data", ValueFrom: forailv1.SecretKeyRef{Name: "ssh-key", Key: "ssh_key_data"}},
 			},
 		},
 	}
@@ -49,15 +49,15 @@ func TestCredentialLifecycle(t *testing.T) {
 		t.Fatalf("create CR: %v", err)
 	}
 
-	// Wait for creation in Forge.
+	// Wait for creation in Forail.
 	if !pollUntil(t, 15*time.Second, func() bool {
-		var got forgev1.Credential
+		var got forailv1.Credential
 		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "deploy-key", Namespace: "default"}, &got); err != nil {
 			return false
 		}
-		return got.Status.ForgeID > 0 && got.Status.SecretsHash != ""
+		return got.Status.ForailID > 0 && got.Status.SecretsHash != ""
 	}) {
-		t.Fatal("timeout: credential ForgeID/SecretsHash not set")
+		t.Fatal("timeout: credential ForailID/SecretsHash not set")
 	}
 
 	if mock.CallCount("POST credentials") != 1 {
@@ -93,7 +93,7 @@ func TestCredentialLifecycle(t *testing.T) {
 	// Force reconcile by touching the CR — Secret events are not watched
 	// in this MVP, so we trigger a CR reconcile manually. (The 60s
 	// periodic requeue would also catch it eventually.)
-	var cred forgev1.Credential
+	var cred forailv1.Credential
 	_ = k8sClient.Get(ctx, types.NamespacedName{Name: "deploy-key", Namespace: "default"}, &cred)
 	if cred.Annotations == nil {
 		cred.Annotations = map[string]string{}

@@ -2,17 +2,17 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Release.Name }}-forge-operator
+  name: {{ .Release.Name }}-forail-operator
   labels:
-    {{- include "forge-operator.labels" . | nindent 4 }}
+    {{- include "forail-operator.labels" . | nindent 4 }}
 rules:
-  - apiGroups: ["forge.forgeplatform.io"]
-    resources: ["jobtemplates", "inventories", "credentials", "schedules", "projects", "organizations", "teams", "workflows", "forgeinstances"]
+  - apiGroups: ["forail.forail-platform.io"]
+    resources: ["jobtemplates", "inventories", "credentials", "schedules", "projects", "organizations", "teams", "workflows", "forailinstances"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["forge.forgeplatform.io"]
-    resources: ["jobtemplates/status", "inventories/status", "credentials/status", "schedules/status", "projects/status", "organizations/status", "teams/status", "workflows/status", "forgeinstances/status"]
+  - apiGroups: ["forail.forail-platform.io"]
+    resources: ["jobtemplates/status", "inventories/status", "credentials/status", "schedules/status", "projects/status", "organizations/status", "teams/status", "workflows/status", "forailinstances/status"]
     verbs: ["get", "update", "patch"]
-  - apiGroups: ["forge.forgeplatform.io"]
+  - apiGroups: ["forail.forail-platform.io"]
     resources: ["jobtemplates/finalizers", "inventories/finalizers", "credentials/finalizers", "schedules/finalizers", "projects/finalizers", "organizations/finalizers", "teams/finalizers", "workflows/finalizers"]
     verbs: ["update"]
   # Credential reconciler reads referenced k8s Secrets for sensitive
@@ -32,15 +32,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .Release.Name }}-forge-operator
+  name: {{ .Release.Name }}-forail-operator
   labels:
-    {{- include "forge-operator.labels" . | nindent 4 }}
+    {{- include "forail-operator.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "forge-operator.serviceAccountName" . }}
+    name: {{ include "forail-operator.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .Release.Name }}-forge-operator
+  name: {{ .Release.Name }}-forail-operator
 {{- end }}

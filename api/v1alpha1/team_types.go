@@ -4,10 +4,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TeamSpec mirrors Forge `/api/v2/teams/`. Team membership is a separate
+// TeamSpec mirrors Forail `/api/v2/teams/`. Team membership is a separate
 // M2M relation handled by the controller (/teams/{id}/users/).
 type TeamSpec struct {
-	// Display name in Forge. Defaults to metadata.name.
+	// Display name in Forail. Defaults to metadata.name.
 	// +optional
 	Name string `json:"name,omitempty"`
 
@@ -18,19 +18,19 @@ type TeamSpec struct {
 	// +kubebuilder:validation:Required
 	Organization string `json:"organization"`
 
-	// Members (Forge usernames). The controller adds/removes users on the
+	// Members (Forail usernames). The controller adds/removes users on the
 	// team via /api/v2/teams/{id}/users/ to converge to this list.
 	// +optional
 	Users []string `json:"users,omitempty"`
 
-	// Optional ForgeInstance reference (for multi-cluster). Empty = default.
+	// Optional ForailInstance reference (for multi-cluster). Empty = default.
 	// +optional
-	ForgeInstance string `json:"forgeInstance,omitempty"`
+	ForailInstance string `json:"forailInstance,omitempty"`
 }
 
 type TeamStatus struct {
 	// +optional
-	ForgeID int64 `json:"forgeId,omitempty"`
+	ForailID int64 `json:"forailId,omitempty"`
 
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -43,8 +43,8 @@ type TeamStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=tm,categories=forge
-// +kubebuilder:printcolumn:name="Forge ID",type=integer,JSONPath=`.status.forgeId`
+// +kubebuilder:resource:shortName=tm,categories=forail
+// +kubebuilder:printcolumn:name="Forail ID",type=integer,JSONPath=`.status.forailId`
 // +kubebuilder:printcolumn:name="Organization",type=string,JSONPath=`.spec.organization`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`

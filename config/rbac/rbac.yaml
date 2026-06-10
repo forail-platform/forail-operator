@@ -1,26 +1,26 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: forge-operator
+  name: forail-operator
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: forge-operator
-  namespace: forge-operator
+  name: forail-operator
+  namespace: forail-operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: forge-operator
+  name: forail-operator
 rules:
-  - apiGroups: ["forge.forgeplatform.io"]
-    resources: ["jobtemplates", "inventories", "credentials", "schedules", "projects", "organizations", "teams", "workflows", "forgeinstances"]
+  - apiGroups: ["forail.forail-platform.io"]
+    resources: ["jobtemplates", "inventories", "credentials", "schedules", "projects", "organizations", "teams", "workflows", "forailinstances"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["forge.forgeplatform.io"]
-    resources: ["jobtemplates/status", "inventories/status", "credentials/status", "schedules/status", "projects/status", "organizations/status", "teams/status", "workflows/status", "forgeinstances/status"]
+  - apiGroups: ["forail.forail-platform.io"]
+    resources: ["jobtemplates/status", "inventories/status", "credentials/status", "schedules/status", "projects/status", "organizations/status", "teams/status", "workflows/status", "forailinstances/status"]
     verbs: ["get", "update", "patch"]
-  - apiGroups: ["forge.forgeplatform.io"]
+  - apiGroups: ["forail.forail-platform.io"]
     resources: ["jobtemplates/finalizers", "inventories/finalizers", "credentials/finalizers", "schedules/finalizers", "projects/finalizers", "organizations/finalizers", "teams/finalizers", "workflows/finalizers"]
     verbs: ["update"]
   - apiGroups: [""]
@@ -37,12 +37,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: forge-operator
+  name: forail-operator
 subjects:
   - kind: ServiceAccount
-    name: forge-operator
-    namespace: forge-operator
+    name: forail-operator
+    namespace: forail-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: forge-operator
+  name: forail-operator

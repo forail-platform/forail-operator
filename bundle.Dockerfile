@@ -1,10 +1,10 @@
-# OLM bundle image for forge-operator.
+# OLM bundle image for forail-operator.
 #
 # The bundle layout:
 #   bundle/
 #   ├── manifests/
-#   │   ├── forge-operator.clusterserviceversion.yaml
-#   │   └── forge.forgeplatform.io_*.yaml      # one per CRD
+#   │   ├── forail-operator.clusterserviceversion.yaml
+#   │   └── forail.forail-platform.io_*.yaml      # one per CRD
 #   └── metadata/
 #       └── annotations.yaml
 #
@@ -14,16 +14,16 @@
 # that an OLM CatalogSource can serve.
 #
 # Build:
-#   make bundle bundle-build BUNDLE_IMG=krlex/forge-operator-bundle:v1.0.0
+#   make bundle bundle-build BUNDLE_IMG=krlex/forail-operator-bundle:v1.0.0
 #
 # Publish:
-#   make bundle-push BUNDLE_IMG=krlex/forge-operator-bundle:v1.0.0
+#   make bundle-push BUNDLE_IMG=krlex/forail-operator-bundle:v1.0.0
 FROM scratch
 
 LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1
 LABEL operators.operatorframework.io.bundle.manifests.v1=manifests/
 LABEL operators.operatorframework.io.bundle.metadata.v1=metadata/
-LABEL operators.operatorframework.io.bundle.package.v1=forge-operator
+LABEL operators.operatorframework.io.bundle.package.v1=forail-operator
 LABEL operators.operatorframework.io.bundle.channels.v1=alpha
 LABEL operators.operatorframework.io.bundle.channel.default.v1=alpha
 

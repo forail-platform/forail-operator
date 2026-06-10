@@ -12,28 +12,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
-	"github.com/forgeplatform/forge-operator/internal/forgeapi"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
+	"github.com/forail-platform/forail-operator/internal/forailapi"
 )
 
-const orgFinalizer = "organization.forge.forgeplatform.io/finalizer"
+const orgFinalizer = "organization.forail.forail-platform.io/finalizer"
 
-// OrganizationReconciler reconciles an Organization CR with Forge.
+// OrganizationReconciler reconciles an Organization CR with Forail.
 type OrganizationReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Forge  *forgeapi.Client
-	Pool   *forgeapi.ClientPool
+	Forail  *forailapi.Client
+	Pool   *forailapi.ClientPool
 }
 
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=organizations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=organizations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=organizations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=organizations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=organizations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=organizations/finalizers,verbs=update
 
 func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var cr forgev1.Organization
+	var cr forailv1.Organization
 	if err := r.Get(ctx, req.NamespacedName, &cr); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -53,9 +53,9 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	fc, err := clientFor(ctx, r.Pool, r.Forge, cr.Namespace, cr.Spec.ForgeInstance)
+	fc, err := clientFor(ctx, r.Pool, r.Forail, cr.Namespace, cr.Spec.ForailInstance)
 	if err != nil {
-		return r.markOrgErr(ctx, &cr, reasonResolveErr, fmt.Errorf("forge instance: %w", err))
+		return r.markOrgErr(ctx, &cr, reasonResolveErr, fmt.Errorf("forail instance: %w", err))
 	}
 
 	desired, err := r.buildDesired(ctx, fc, &cr)
@@ -73,20 +73,20 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if err != nil {
 			return r.markOrgErr(ctx, &cr, reasonAPIError, fmt.Errorf("create: %w", err))
 		}
-		logger.Info("created Organization in Forge", "id", created.ID, "name", created.Name)
+		logger.Info("created Organization in Forail", "id", created.ID, "name", created.Name)
 		current = created
 	} else if !equalOrganization(current, desired) {
 		updated, err := fc.UpdateOrganization(ctx, current.ID, desired)
 		if err != nil {
 			return r.markOrgErr(ctx, &cr, reasonAPIError, fmt.Errorf("update: %w", err))
 		}
-		logger.Info("updated Organization in Forge", "id", updated.ID)
+		logger.Info("updated Organization in Forail", "id", updated.ID)
 		current = updated
 	}
 
-	cr.Status.ForgeID = current.ID
+	cr.Status.ForailID = current.ID
 	cr.Status.ObservedGeneration = cr.Generation
-	setOrgCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Organization is in sync with Forge")
+	setOrgCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Organization is in sync with Forail")
 	setOrgCondition(&cr, conditionReady, metav1.ConditionTrue, reasonInSync, "")
 	if err := r.Status().Update(ctx, &cr); err != nil {
 		return ctrl.Result{}, err
@@ -94,29 +94,29 @@ func (r *OrganizationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
 }
 
-func (r *OrganizationReconciler) reconcileDelete(ctx context.Context, cr *forgev1.Organization) (ctrl.Result, error) {
+func (r *OrganizationReconciler) reconcileDelete(ctx context.Context, cr *forailv1.Organization) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	if cr.Status.ForgeID > 0 {
-		fc, ferr := clientFor(ctx, r.Pool, r.Forge, cr.Namespace, cr.Spec.ForgeInstance)
+	if cr.Status.ForailID > 0 {
+		fc, ferr := clientFor(ctx, r.Pool, r.Forail, cr.Namespace, cr.Spec.ForailInstance)
 		if ferr != nil {
-			return ctrl.Result{}, fmt.Errorf("resolve forge instance for delete: %w", ferr)
+			return ctrl.Result{}, fmt.Errorf("resolve forail instance for delete: %w", ferr)
 		}
-		if err := fc.DeleteOrganization(ctx, cr.Status.ForgeID); err != nil && !forgeapi.IsNotFound(err) {
-			return ctrl.Result{}, fmt.Errorf("delete forge Organization %d: %w", cr.Status.ForgeID, err)
+		if err := fc.DeleteOrganization(ctx, cr.Status.ForailID); err != nil && !forailapi.IsNotFound(err) {
+			return ctrl.Result{}, fmt.Errorf("delete forail Organization %d: %w", cr.Status.ForailID, err)
 		}
-		logger.Info("deleted Organization from Forge", "id", cr.Status.ForgeID)
+		logger.Info("deleted Organization from Forail", "id", cr.Status.ForailID)
 	}
 	cr.Finalizers = removeString(cr.Finalizers, orgFinalizer)
 	return ctrl.Result{}, r.Update(ctx, cr)
 }
 
-func (r *OrganizationReconciler) buildDesired(ctx context.Context, fc *forgeapi.Client, cr *forgev1.Organization) (*forgeapi.Organization, error) {
+func (r *OrganizationReconciler) buildDesired(ctx context.Context, fc *forailapi.Client, cr *forailv1.Organization) (*forailapi.Organization, error) {
 	name := cr.Spec.Name
 	if name == "" {
 		name = cr.Name
 	}
 
-	o := &forgeapi.Organization{
+	o := &forailapi.Organization{
 		Name:        name,
 		Description: cr.Spec.Description,
 		MaxHosts:    cr.Spec.MaxHosts,
@@ -128,27 +128,27 @@ func (r *OrganizationReconciler) buildDesired(ctx context.Context, fc *forgeapi.
 			return nil, fmt.Errorf("resolve execution_environment %q: %w", cr.Spec.DefaultEnvironment, err)
 		}
 		if eeID < 0 {
-			return nil, fmt.Errorf("execution_environment %q not found in Forge", cr.Spec.DefaultEnvironment)
+			return nil, fmt.Errorf("execution_environment %q not found in Forail", cr.Spec.DefaultEnvironment)
 		}
 		o.DefaultEnvironment = &eeID
 	}
 	return o, nil
 }
 
-func (r *OrganizationReconciler) findExisting(ctx context.Context, fc *forgeapi.Client, cr *forgev1.Organization, name string) (*forgeapi.Organization, error) {
-	if cr.Status.ForgeID > 0 {
-		o, err := fc.GetOrganization(ctx, cr.Status.ForgeID)
+func (r *OrganizationReconciler) findExisting(ctx context.Context, fc *forailapi.Client, cr *forailv1.Organization, name string) (*forailapi.Organization, error) {
+	if cr.Status.ForailID > 0 {
+		o, err := fc.GetOrganization(ctx, cr.Status.ForailID)
 		if err == nil {
 			return o, nil
 		}
-		if !forgeapi.IsNotFound(err) {
+		if !forailapi.IsNotFound(err) {
 			return nil, err
 		}
 	}
 	return fc.FindOrganizationByName(ctx, name)
 }
 
-func (r *OrganizationReconciler) markOrgErr(ctx context.Context, cr *forgev1.Organization, reason string, err error) (ctrl.Result, error) {
+func (r *OrganizationReconciler) markOrgErr(ctx context.Context, cr *forailv1.Organization, reason string, err error) (ctrl.Result, error) {
 	setOrgCondition(cr, conditionReady, metav1.ConditionFalse, reason, err.Error())
 	setOrgCondition(cr, conditionSynced, metav1.ConditionFalse, reason, err.Error())
 	if uerr := r.Status().Update(ctx, cr); uerr != nil {
@@ -159,11 +159,11 @@ func (r *OrganizationReconciler) markOrgErr(ctx context.Context, cr *forgev1.Org
 
 func (r *OrganizationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Organization{}).
+		For(&forailv1.Organization{}).
 		Complete(r)
 }
 
-func setOrgCondition(cr *forgev1.Organization, condType string, status metav1.ConditionStatus, reason, msg string) {
+func setOrgCondition(cr *forailv1.Organization, condType string, status metav1.ConditionStatus, reason, msg string) {
 	now := metav1.Now()
 	for i, c := range cr.Status.Conditions {
 		if c.Type == condType {
@@ -187,7 +187,7 @@ func setOrgCondition(cr *forgev1.Organization, condType string, status metav1.Co
 	})
 }
 
-func equalOrganization(a, b *forgeapi.Organization) bool {
+func equalOrganization(a, b *forailapi.Organization) bool {
 	return a.Name == b.Name &&
 		a.Description == b.Description &&
 		a.MaxHosts == b.MaxHosts &&

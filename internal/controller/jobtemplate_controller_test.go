@@ -9,11 +9,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
 )
 
 func TestJobTemplateLifecycle(t *testing.T) {
-	mock := newMockForge()
+	mock := newMockForail()
 	srv, _ := mock.start(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -28,9 +28,9 @@ func TestJobTemplateLifecycle(t *testing.T) {
 	mock.mu.Unlock()
 
 	// --- Create CR ---
-	cr := &forgev1.JobTemplate{
+	cr := &forailv1.JobTemplate{
 		ObjectMeta: metav1.ObjectMeta{Name: "deploy-web", Namespace: "default"},
-		Spec: forgev1.JobTemplateSpec{
+		Spec: forailv1.JobTemplateSpec{
 			Description: "Test deploy",
 			Inventory:   "Demo Inventory",
 			Project:     "Demo Project",
@@ -43,13 +43,13 @@ func TestJobTemplateLifecycle(t *testing.T) {
 
 	// Wait for reconcile to POST job_templates and write status.
 	if !pollUntil(t, 10*time.Second, func() bool {
-		var got forgev1.JobTemplate
+		var got forailv1.JobTemplate
 		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "deploy-web", Namespace: "default"}, &got); err != nil {
 			return false
 		}
-		return got.Status.ForgeID > 0
+		return got.Status.ForailID > 0
 	}) {
-		t.Fatal("timeout: forgeId not set")
+		t.Fatal("timeout: forailId not set")
 	}
 
 	if mock.CallCount("POST job_templates") < 1 {
@@ -57,7 +57,7 @@ func TestJobTemplateLifecycle(t *testing.T) {
 	}
 
 	// --- Update CR (drift) ---
-	var got forgev1.JobTemplate
+	var got forailv1.JobTemplate
 	_ = k8sClient.Get(ctx, types.NamespacedName{Name: "deploy-web", Namespace: "default"}, &got)
 	got.Spec.Description = "Updated description"
 	if err := k8sClient.Update(ctx, &got); err != nil {
@@ -69,7 +69,7 @@ func TestJobTemplateLifecycle(t *testing.T) {
 		t.Fatal("timeout: PATCH jobtemplate never called")
 	}
 
-	// --- Delete CR (finalizer should DELETE in Forge) ---
+	// --- Delete CR (finalizer should DELETE in Forail) ---
 	if err := k8sClient.Delete(ctx, &got); err != nil {
 		t.Fatalf("delete CR: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestJobTemplateLifecycle(t *testing.T) {
 	}
 	// CR should be gone after finalizer runs.
 	if !pollUntil(t, 10*time.Second, func() bool {
-		var x forgev1.JobTemplate
+		var x forailv1.JobTemplate
 		err := k8sClient.Get(ctx, types.NamespacedName{Name: "deploy-web", Namespace: "default"}, &x)
 		return apierrors.IsNotFound(err)
 	}) {

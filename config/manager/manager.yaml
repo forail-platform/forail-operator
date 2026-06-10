@@ -1,58 +1,58 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: forge-operator
+  name: forail-operator
 ---
-# Forge OAuth2 Personal Access Token. Generate with:
-#   kubectl -n forge exec deploy/forge-web -- forge-manage create_oauth2_token --user admin
+# Forail OAuth2 Personal Access Token. Generate with:
+#   kubectl -n forail exec deploy/forail-web -- forail-manage create_oauth2_token --user admin
 # Then base64-encode the token and set it here, or replace stringData.
 apiVersion: v1
 kind: Secret
 metadata:
-  name: forge-credentials
-  namespace: forge-operator
+  name: forail-credentials
+  namespace: forail-operator
 type: Opaque
 stringData:
-  token: "REPLACE_WITH_FORGE_OAUTH2_PAT"
+  token: "REPLACE_WITH_FORAIL_OAUTH2_PAT"
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: forge-operator
-  namespace: forge-operator
+  name: forail-operator
+  namespace: forail-operator
   labels:
-    app.kubernetes.io/name: forge-operator
-    app.kubernetes.io/part-of: forge-platform
+    app.kubernetes.io/name: forail-operator
+    app.kubernetes.io/part-of: forail-platform
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: forge-operator
+      app.kubernetes.io/name: forail-operator
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: forge-operator
+        app.kubernetes.io/name: forail-operator
     spec:
-      serviceAccountName: forge-operator
+      serviceAccountName: forail-operator
       containers:
         - name: manager
-          image: ghcr.io/forgeplatform/forge-operator:1.0.0
+          image: ghcr.io/forail-platform/forail-operator:1.0.0
           imagePullPolicy: IfNotPresent
           args:
             - --metrics-bind-address=:8080
             - --health-probe-bind-address=:8081
           env:
             # In-cluster service URL — bypasses the Ingress, plain HTTP on
-            # the pod network. No Host header needed because forge-web's
+            # the pod network. No Host header needed because forail-web's
             # internal nginx accepts any Host.
-            - name: FORGE_URL
-              value: http://forge-web.forge.svc.cluster.local:8013
-            - name: FORGE_TOKEN
+            - name: FORAIL_URL
+              value: http://forail-web.forail.svc.cluster.local:8013
+            - name: FORAIL_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: forge-credentials
+                  name: forail-credentials
                   key: token
-            - name: FORGE_INSECURE
+            - name: FORAIL_INSECURE
               value: "false"
           ports:
             - { name: metrics, containerPort: 8080 }

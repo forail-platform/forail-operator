@@ -1,17 +1,17 @@
 apiVersion: v2
-name: forge-operator
-description: Kubernetes operator for the Forge automation platform — declarative Organization, Team, Project, Inventory, Credential, JobTemplate, Schedule, Workflow, and ForgeInstance CRDs synced to the Forge REST API (multi-cluster capable)
+name: forail-operator
+description: Kubernetes operator for the Forail automation platform — declarative Organization, Team, Project, Inventory, Credential, JobTemplate, Schedule, Workflow, and ForailInstance CRDs synced to the Forail REST API (multi-cluster capable)
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
-home: https://forgeplatform.github.io
+home: https://forail-platform.github.io
 sources:
-  - https://github.com/forgeplatform/forge-operator
+  - https://github.com/forail-platform/forail-operator
 maintainers:
   - name: Krstan Vjestica
     email: office@krletron.xyz
 keywords:
-  - forge
+  - forail
   - automation
   - operator
   - ansible

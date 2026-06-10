@@ -1,4 +1,4 @@
-apiVersion: forge.forgeplatform.io/v1alpha1
+apiVersion: forail.forail-platform.io/v1alpha1
 kind: JobTemplate
 metadata:
   name: deploy-web
@@ -6,11 +6,11 @@ metadata:
 spec:
   description: "Deploys the web tier via Ansible"
   jobType: run
-  inventory: Demo Inventory      # name as it appears in Forge UI
+  inventory: Demo Inventory      # name as it appears in Forail UI
   project: Demo Project
   # hello_world.yml is the only playbook shipped with Demo Project; for
   # real templates, set this to a path that actually exists in the
-  # configured project's repo (Forge validates it on JT create).
+  # configured project's repo (Forail validates it on JT create).
   playbook: hello_world.yml
   forks: 5
   verbosity: 1

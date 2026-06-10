@@ -12,11 +12,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
-	"github.com/forgeplatform/forge-operator/internal/forgeapi"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
+	"github.com/forail-platform/forail-operator/internal/forailapi"
 )
 
-const workflowFinalizer = "workflow.forge.forgeplatform.io/finalizer"
+const workflowFinalizer = "workflow.forail.forail-platform.io/finalizer"
 
 // WorkflowReconciler reconciles a Workflow CR + its DAG of nodes.
 //
@@ -30,18 +30,18 @@ const workflowFinalizer = "workflow.forge.forgeplatform.io/finalizer"
 type WorkflowReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Forge  *forgeapi.Client
-	Pool   *forgeapi.ClientPool
+	Forail  *forailapi.Client
+	Pool   *forailapi.ClientPool
 }
 
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=workflows,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=workflows/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=workflows/finalizers,verbs=update
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=workflows,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=workflows/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=workflows/finalizers,verbs=update
 
 func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var cr forgev1.Workflow
+	var cr forailv1.Workflow
 	if err := r.Get(ctx, req.NamespacedName, &cr); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -61,9 +61,9 @@ func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	fc, err := clientFor(ctx, r.Pool, r.Forge, cr.Namespace, cr.Spec.ForgeInstance)
+	fc, err := clientFor(ctx, r.Pool, r.Forail, cr.Namespace, cr.Spec.ForailInstance)
 	if err != nil {
-		return r.markWorkflowErr(ctx, &cr, reasonResolveErr, fmt.Errorf("forge instance: %w", err))
+		return r.markWorkflowErr(ctx, &cr, reasonResolveErr, fmt.Errorf("forail instance: %w", err))
 	}
 
 	// --- Phase 1: workflow shell ---
@@ -82,14 +82,14 @@ func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		if err != nil {
 			return r.markWorkflowErr(ctx, &cr, reasonAPIError, fmt.Errorf("create: %w", err))
 		}
-		logger.Info("created Workflow in Forge", "id", created.ID, "name", created.Name)
+		logger.Info("created Workflow in Forail", "id", created.ID, "name", created.Name)
 		current = created
 	} else if !equalWorkflow(current, desired) {
 		updated, err := fc.UpdateWorkflow(ctx, current.ID, desired)
 		if err != nil {
 			return r.markWorkflowErr(ctx, &cr, reasonAPIError, fmt.Errorf("update: %w", err))
 		}
-		logger.Info("updated Workflow in Forge", "id", updated.ID)
+		logger.Info("updated Workflow in Forail", "id", updated.ID)
 		current = updated
 	}
 
@@ -104,10 +104,10 @@ func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return r.markWorkflowErr(ctx, &cr, reasonAPIError, fmt.Errorf("edges: %w", err))
 	}
 
-	cr.Status.ForgeID = current.ID
+	cr.Status.ForailID = current.ID
 	cr.Status.ObservedGeneration = cr.Generation
 	cr.Status.NodeCount = int32(len(cr.Spec.Nodes))
-	setWorkflowCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Workflow is in sync with Forge")
+	setWorkflowCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Workflow is in sync with Forail")
 	setWorkflowCondition(&cr, conditionReady, metav1.ConditionTrue, reasonInSync, "")
 	if err := r.Status().Update(ctx, &cr); err != nil {
 		return ctrl.Result{}, err
@@ -115,25 +115,25 @@ func (r *WorkflowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
 }
 
-func (r *WorkflowReconciler) reconcileDelete(ctx context.Context, cr *forgev1.Workflow) (ctrl.Result, error) {
+func (r *WorkflowReconciler) reconcileDelete(ctx context.Context, cr *forailv1.Workflow) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	// Forge cascades nodes when the parent workflow is deleted, so a single
+	// Forail cascades nodes when the parent workflow is deleted, so a single
 	// DELETE on /workflow_job_templates/{id}/ is enough.
-	if cr.Status.ForgeID > 0 {
-		fc, ferr := clientFor(ctx, r.Pool, r.Forge, cr.Namespace, cr.Spec.ForgeInstance)
+	if cr.Status.ForailID > 0 {
+		fc, ferr := clientFor(ctx, r.Pool, r.Forail, cr.Namespace, cr.Spec.ForailInstance)
 		if ferr != nil {
-			return ctrl.Result{}, fmt.Errorf("resolve forge instance for delete: %w", ferr)
+			return ctrl.Result{}, fmt.Errorf("resolve forail instance for delete: %w", ferr)
 		}
-		if err := fc.DeleteWorkflow(ctx, cr.Status.ForgeID); err != nil && !forgeapi.IsNotFound(err) {
-			return ctrl.Result{}, fmt.Errorf("delete forge Workflow %d: %w", cr.Status.ForgeID, err)
+		if err := fc.DeleteWorkflow(ctx, cr.Status.ForailID); err != nil && !forailapi.IsNotFound(err) {
+			return ctrl.Result{}, fmt.Errorf("delete forail Workflow %d: %w", cr.Status.ForailID, err)
 		}
-		logger.Info("deleted Workflow from Forge", "id", cr.Status.ForgeID)
+		logger.Info("deleted Workflow from Forail", "id", cr.Status.ForailID)
 	}
 	cr.Finalizers = removeString(cr.Finalizers, workflowFinalizer)
 	return ctrl.Result{}, r.Update(ctx, cr)
 }
 
-func (r *WorkflowReconciler) buildDesiredShell(ctx context.Context, fc *forgeapi.Client, cr *forgev1.Workflow) (*forgeapi.Workflow, error) {
+func (r *WorkflowReconciler) buildDesiredShell(ctx context.Context, fc *forailapi.Client, cr *forailv1.Workflow) (*forailapi.Workflow, error) {
 	name := cr.Spec.Name
 	if name == "" {
 		name = cr.Name
@@ -144,10 +144,10 @@ func (r *WorkflowReconciler) buildDesiredShell(ctx context.Context, fc *forgeapi
 		return nil, fmt.Errorf("resolve organization %q: %w", cr.Spec.Organization, err)
 	}
 	if orgID < 0 {
-		return nil, fmt.Errorf("organization %q not found in Forge", cr.Spec.Organization)
+		return nil, fmt.Errorf("organization %q not found in Forail", cr.Spec.Organization)
 	}
 
-	w := &forgeapi.Workflow{
+	w := &forailapi.Workflow{
 		Name:                 name,
 		Description:          cr.Spec.Description,
 		Organization:         orgID,
@@ -164,39 +164,39 @@ func (r *WorkflowReconciler) buildDesiredShell(ctx context.Context, fc *forgeapi
 			return nil, fmt.Errorf("resolve inventory %q: %w", cr.Spec.Inventory, err)
 		}
 		if invID < 0 {
-			return nil, fmt.Errorf("inventory %q not found in Forge", cr.Spec.Inventory)
+			return nil, fmt.Errorf("inventory %q not found in Forail", cr.Spec.Inventory)
 		}
 		w.Inventory = &invID
 	}
 	return w, nil
 }
 
-func (r *WorkflowReconciler) findExistingShell(ctx context.Context, fc *forgeapi.Client, cr *forgev1.Workflow, name string) (*forgeapi.Workflow, error) {
-	if cr.Status.ForgeID > 0 {
-		w, err := fc.GetWorkflow(ctx, cr.Status.ForgeID)
+func (r *WorkflowReconciler) findExistingShell(ctx context.Context, fc *forailapi.Client, cr *forailv1.Workflow, name string) (*forailapi.Workflow, error) {
+	if cr.Status.ForailID > 0 {
+		w, err := fc.GetWorkflow(ctx, cr.Status.ForailID)
 		if err == nil {
 			return w, nil
 		}
-		if !forgeapi.IsNotFound(err) {
+		if !forailapi.IsNotFound(err) {
 			return nil, err
 		}
 	}
 	return fc.FindWorkflowByName(ctx, name)
 }
 
-// syncNodes brings the Forge node set into agreement with cr.Spec.Nodes,
-// returning a map of {identifier -> Forge node ID} usable for edge sync.
-func (r *WorkflowReconciler) syncNodes(ctx context.Context, fc *forgeapi.Client, cr *forgev1.Workflow, workflowID int64) (map[string]int64, error) {
+// syncNodes brings the Forail node set into agreement with cr.Spec.Nodes,
+// returning a map of {identifier -> Forail node ID} usable for edge sync.
+func (r *WorkflowReconciler) syncNodes(ctx context.Context, fc *forailapi.Client, cr *forailv1.Workflow, workflowID int64) (map[string]int64, error) {
 	currentNodes, err := fc.ListWorkflowNodes(ctx, workflowID)
 	if err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
 	}
-	currentByID := map[string]forgeapi.WorkflowNode{}
+	currentByID := map[string]forailapi.WorkflowNode{}
 	for _, n := range currentNodes {
 		currentByID[n.Identifier] = n
 	}
 
-	desiredByID := map[string]*forgev1.WorkflowNode{}
+	desiredByID := map[string]*forailv1.WorkflowNode{}
 	for i := range cr.Spec.Nodes {
 		n := &cr.Spec.Nodes[i]
 		desiredByID[n.Identifier] = n
@@ -210,7 +210,7 @@ func (r *WorkflowReconciler) syncNodes(ctx context.Context, fc *forgeapi.Client,
 		if err != nil {
 			return nil, err
 		}
-		wantNode := &forgeapi.WorkflowNode{
+		wantNode := &forailapi.WorkflowNode{
 			Identifier:         ident,
 			UnifiedJobTemplate: ujtID,
 			ExtraData:          dn.ExtraData,
@@ -245,7 +245,7 @@ func (r *WorkflowReconciler) syncNodes(ctx context.Context, fc *forgeapi.Client,
 	return idByIdentifier, nil
 }
 
-func (r *WorkflowReconciler) resolveUnifiedJobTemplate(ctx context.Context, fc *forgeapi.Client, n *forgev1.WorkflowNode) (int64, error) {
+func (r *WorkflowReconciler) resolveUnifiedJobTemplate(ctx context.Context, fc *forailapi.Client, n *forailv1.WorkflowNode) (int64, error) {
 	kind := n.UnifiedJobTemplateKind
 	if kind == "" {
 		kind = "job_template"
@@ -274,7 +274,7 @@ func (r *WorkflowReconciler) resolveUnifiedJobTemplate(ctx context.Context, fc *
 	}
 }
 
-func (r *WorkflowReconciler) syncEdges(ctx context.Context, fc *forgeapi.Client, cr *forgev1.Workflow, idByIdentifier map[string]int64) error {
+func (r *WorkflowReconciler) syncEdges(ctx context.Context, fc *forailapi.Client, cr *forailv1.Workflow, idByIdentifier map[string]int64) error {
 	for i := range cr.Spec.Nodes {
 		n := &cr.Spec.Nodes[i]
 		srcID, ok := idByIdentifier[n.Identifier]
@@ -297,7 +297,7 @@ func (r *WorkflowReconciler) syncEdges(ctx context.Context, fc *forgeapi.Client,
 	return nil
 }
 
-func (r *WorkflowReconciler) syncOneEdge(ctx context.Context, fc *forgeapi.Client, srcID int64, edge string, targets []string, idByIdentifier map[string]int64) error {
+func (r *WorkflowReconciler) syncOneEdge(ctx context.Context, fc *forailapi.Client, srcID int64, edge string, targets []string, idByIdentifier map[string]int64) error {
 	desired := map[int64]struct{}{}
 	for _, ident := range targets {
 		id, ok := idByIdentifier[ident]
@@ -331,7 +331,7 @@ func (r *WorkflowReconciler) syncOneEdge(ctx context.Context, fc *forgeapi.Clien
 	return nil
 }
 
-func (r *WorkflowReconciler) markWorkflowErr(ctx context.Context, cr *forgev1.Workflow, reason string, err error) (ctrl.Result, error) {
+func (r *WorkflowReconciler) markWorkflowErr(ctx context.Context, cr *forailv1.Workflow, reason string, err error) (ctrl.Result, error) {
 	setWorkflowCondition(cr, conditionReady, metav1.ConditionFalse, reason, err.Error())
 	setWorkflowCondition(cr, conditionSynced, metav1.ConditionFalse, reason, err.Error())
 	if uerr := r.Status().Update(ctx, cr); uerr != nil {
@@ -342,11 +342,11 @@ func (r *WorkflowReconciler) markWorkflowErr(ctx context.Context, cr *forgev1.Wo
 
 func (r *WorkflowReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Workflow{}).
+		For(&forailv1.Workflow{}).
 		Complete(r)
 }
 
-func setWorkflowCondition(cr *forgev1.Workflow, condType string, status metav1.ConditionStatus, reason, msg string) {
+func setWorkflowCondition(cr *forailv1.Workflow, condType string, status metav1.ConditionStatus, reason, msg string) {
 	now := metav1.Now()
 	for i, c := range cr.Status.Conditions {
 		if c.Type == condType {
@@ -370,7 +370,7 @@ func setWorkflowCondition(cr *forgev1.Workflow, condType string, status metav1.C
 	})
 }
 
-func equalWorkflow(a, b *forgeapi.Workflow) bool {
+func equalWorkflow(a, b *forailapi.Workflow) bool {
 	return a.Name == b.Name &&
 		a.Description == b.Description &&
 		a.Organization == b.Organization &&

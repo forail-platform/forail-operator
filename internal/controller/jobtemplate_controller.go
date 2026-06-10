@@ -12,27 +12,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
-	"github.com/forgeplatform/forge-operator/internal/forgeapi"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
+	"github.com/forail-platform/forail-operator/internal/forailapi"
 )
 
-const finalizer = "jobtemplate.forge.forgeplatform.io/finalizer"
+const finalizer = "jobtemplate.forail.forail-platform.io/finalizer"
 
-// JobTemplateReconciler reconciles a JobTemplate CR with Forge.
+// JobTemplateReconciler reconciles a JobTemplate CR with Forail.
 type JobTemplateReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Forge  *forgeapi.Client
+	Forail  *forailapi.Client
 }
 
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=jobtemplates,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=jobtemplates/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=jobtemplates/finalizers,verbs=update
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=jobtemplates,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=jobtemplates/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=jobtemplates/finalizers,verbs=update
 
 func (r *JobTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var cr forgev1.JobTemplate
+	var cr forailv1.JobTemplate
 	if err := r.Get(ctx, req.NamespacedName, &cr); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -41,7 +41,7 @@ func (r *JobTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Handle deletion: if the CR is being deleted, run finalizer to clean up
-	// the corresponding JobTemplate in Forge before allowing the CR to go.
+	// the corresponding JobTemplate in Forail before allowing the CR to go.
 	if !cr.DeletionTimestamp.IsZero() {
 		return r.reconcileDelete(ctx, &cr)
 	}
@@ -54,13 +54,13 @@ func (r *JobTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// Build the desired Forge representation, resolving name refs.
+	// Build the desired Forail representation, resolving name refs.
 	desired, err := r.buildDesired(ctx, &cr)
 	if err != nil {
 		return r.markError(ctx, &cr, reasonResolveErr, err)
 	}
 
-	// Find existing in Forge — by ID first (status), fallback to name lookup
+	// Find existing in Forail — by ID first (status), fallback to name lookup
 	// so we adopt resources created out of band by the same name.
 	current, err := r.findExisting(ctx, &cr, desired.Name)
 	if err != nil {
@@ -68,20 +68,20 @@ func (r *JobTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if current == nil {
-		created, err := r.Forge.CreateJobTemplate(ctx, desired)
+		created, err := r.Forail.CreateJobTemplate(ctx, desired)
 		if err != nil {
 			return r.markError(ctx, &cr, reasonAPIError, fmt.Errorf("create: %w", err))
 		}
-		logger.Info("created JobTemplate in Forge", "id", created.ID, "name", created.Name)
+		logger.Info("created JobTemplate in Forail", "id", created.ID, "name", created.Name)
 		current = created
 	} else {
 		// Patch only if drift detected. PATCH a partial doc is idempotent.
 		if !equalJobTemplate(current, desired) {
-			updated, err := r.Forge.UpdateJobTemplate(ctx, current.ID, desired)
+			updated, err := r.Forail.UpdateJobTemplate(ctx, current.ID, desired)
 			if err != nil {
 				return r.markError(ctx, &cr, reasonAPIError, fmt.Errorf("update: %w", err))
 			}
-			logger.Info("updated JobTemplate in Forge", "id", updated.ID)
+			logger.Info("updated JobTemplate in Forail", "id", updated.ID)
 			current = updated
 		}
 	}
@@ -92,50 +92,50 @@ func (r *JobTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Status update: ID + ObservedGeneration + Conditions.
-	cr.Status.ForgeID = current.ID
+	cr.Status.ForailID = current.ID
 	cr.Status.ObservedGeneration = cr.Generation
-	setCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "JobTemplate is in sync with Forge")
+	setCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "JobTemplate is in sync with Forail")
 	setCondition(&cr, conditionReady, metav1.ConditionTrue, reasonInSync, "")
 	if err := r.Status().Update(ctx, &cr); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// Periodic re-reconcile to detect external drift in Forge.
+	// Periodic re-reconcile to detect external drift in Forail.
 	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
 }
 
-func (r *JobTemplateReconciler) reconcileDelete(ctx context.Context, cr *forgev1.JobTemplate) (ctrl.Result, error) {
+func (r *JobTemplateReconciler) reconcileDelete(ctx context.Context, cr *forailv1.JobTemplate) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	if cr.Status.ForgeID > 0 {
-		if err := r.Forge.DeleteJobTemplate(ctx, cr.Status.ForgeID); err != nil && !forgeapi.IsNotFound(err) {
-			return ctrl.Result{}, fmt.Errorf("delete forge JobTemplate %d: %w", cr.Status.ForgeID, err)
+	if cr.Status.ForailID > 0 {
+		if err := r.Forail.DeleteJobTemplate(ctx, cr.Status.ForailID); err != nil && !forailapi.IsNotFound(err) {
+			return ctrl.Result{}, fmt.Errorf("delete forail JobTemplate %d: %w", cr.Status.ForailID, err)
 		}
-		logger.Info("deleted JobTemplate from Forge", "id", cr.Status.ForgeID)
+		logger.Info("deleted JobTemplate from Forail", "id", cr.Status.ForailID)
 	}
 	cr.Finalizers = removeString(cr.Finalizers, finalizer)
 	return ctrl.Result{}, r.Update(ctx, cr)
 }
 
-func (r *JobTemplateReconciler) buildDesired(ctx context.Context, cr *forgev1.JobTemplate) (*forgeapi.JobTemplate, error) {
+func (r *JobTemplateReconciler) buildDesired(ctx context.Context, cr *forailv1.JobTemplate) (*forailapi.JobTemplate, error) {
 	name := cr.Spec.Name
 	if name == "" {
 		name = cr.Name
 	}
 
-	invID, err := r.Forge.ResolveInventory(ctx, cr.Spec.Inventory)
+	invID, err := r.Forail.ResolveInventory(ctx, cr.Spec.Inventory)
 	if err != nil {
 		return nil, fmt.Errorf("resolve inventory %q: %w", cr.Spec.Inventory, err)
 	}
 	if invID < 0 {
-		return nil, fmt.Errorf("inventory %q not found in Forge", cr.Spec.Inventory)
+		return nil, fmt.Errorf("inventory %q not found in Forail", cr.Spec.Inventory)
 	}
 
-	projID, err := r.Forge.ResolveProject(ctx, cr.Spec.Project)
+	projID, err := r.Forail.ResolveProject(ctx, cr.Spec.Project)
 	if err != nil {
 		return nil, fmt.Errorf("resolve project %q: %w", cr.Spec.Project, err)
 	}
 	if projID < 0 {
-		return nil, fmt.Errorf("project %q not found in Forge", cr.Spec.Project)
+		return nil, fmt.Errorf("project %q not found in Forail", cr.Spec.Project)
 	}
 
 	jobType := cr.Spec.JobType
@@ -143,7 +143,7 @@ func (r *JobTemplateReconciler) buildDesired(ctx context.Context, cr *forgev1.Jo
 		jobType = "run"
 	}
 
-	return &forgeapi.JobTemplate{
+	return &forailapi.JobTemplate{
 		Name:                  name,
 		Description:           cr.Spec.Description,
 		JobType:               jobType,
@@ -161,34 +161,34 @@ func (r *JobTemplateReconciler) buildDesired(ctx context.Context, cr *forgev1.Jo
 	}, nil
 }
 
-func (r *JobTemplateReconciler) findExisting(ctx context.Context, cr *forgev1.JobTemplate, name string) (*forgeapi.JobTemplate, error) {
-	if cr.Status.ForgeID > 0 {
-		jt, err := r.Forge.GetJobTemplate(ctx, cr.Status.ForgeID)
+func (r *JobTemplateReconciler) findExisting(ctx context.Context, cr *forailv1.JobTemplate, name string) (*forailapi.JobTemplate, error) {
+	if cr.Status.ForailID > 0 {
+		jt, err := r.Forail.GetJobTemplate(ctx, cr.Status.ForailID)
 		if err == nil {
 			return jt, nil
 		}
-		if !forgeapi.IsNotFound(err) {
+		if !forailapi.IsNotFound(err) {
 			return nil, err
 		}
 		// fall through to name lookup if the ID is gone (drift / external delete)
 	}
-	return r.Forge.FindJobTemplateByName(ctx, name)
+	return r.Forail.FindJobTemplateByName(ctx, name)
 }
 
-func (r *JobTemplateReconciler) syncCredentials(ctx context.Context, cr *forgev1.JobTemplate, jobTemplateID int64) error {
+func (r *JobTemplateReconciler) syncCredentials(ctx context.Context, cr *forailv1.JobTemplate, jobTemplateID int64) error {
 	desired := map[int64]struct{}{}
 	for _, name := range cr.Spec.Credentials {
-		id, err := r.Forge.ResolveCredential(ctx, name)
+		id, err := r.Forail.ResolveCredential(ctx, name)
 		if err != nil {
 			return fmt.Errorf("resolve credential %q: %w", name, err)
 		}
 		if id < 0 {
-			return fmt.Errorf("credential %q not found in Forge", name)
+			return fmt.Errorf("credential %q not found in Forail", name)
 		}
 		desired[id] = struct{}{}
 	}
 
-	currentIDs, err := r.Forge.ListJobTemplateCredentials(ctx, jobTemplateID)
+	currentIDs, err := r.Forail.ListJobTemplateCredentials(ctx, jobTemplateID)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (r *JobTemplateReconciler) syncCredentials(ctx context.Context, cr *forgev1
 	// Add what's missing.
 	for id := range desired {
 		if _, ok := current[id]; !ok {
-			if err := r.Forge.AssociateCredential(ctx, jobTemplateID, id); err != nil {
+			if err := r.Forail.AssociateCredential(ctx, jobTemplateID, id); err != nil {
 				return fmt.Errorf("associate credential %d: %w", id, err)
 			}
 		}
@@ -208,7 +208,7 @@ func (r *JobTemplateReconciler) syncCredentials(ctx context.Context, cr *forgev1
 	// Remove what's no longer wanted.
 	for id := range current {
 		if _, ok := desired[id]; !ok {
-			if err := r.Forge.DisassociateCredential(ctx, jobTemplateID, id); err != nil {
+			if err := r.Forail.DisassociateCredential(ctx, jobTemplateID, id); err != nil {
 				return fmt.Errorf("disassociate credential %d: %w", id, err)
 			}
 		}
@@ -216,7 +216,7 @@ func (r *JobTemplateReconciler) syncCredentials(ctx context.Context, cr *forgev1
 	return nil
 }
 
-func (r *JobTemplateReconciler) markError(ctx context.Context, cr *forgev1.JobTemplate, reason string, err error) (ctrl.Result, error) {
+func (r *JobTemplateReconciler) markError(ctx context.Context, cr *forailv1.JobTemplate, reason string, err error) (ctrl.Result, error) {
 	setCondition(cr, conditionReady, metav1.ConditionFalse, reason, err.Error())
 	setCondition(cr, conditionSynced, metav1.ConditionFalse, reason, err.Error())
 	if uerr := r.Status().Update(ctx, cr); uerr != nil {
@@ -228,13 +228,13 @@ func (r *JobTemplateReconciler) markError(ctx context.Context, cr *forgev1.JobTe
 // SetupWithManager wires the reconciler to JobTemplate events.
 func (r *JobTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.JobTemplate{}).
+		For(&forailv1.JobTemplate{}).
 		Complete(r)
 }
 
 // --- helpers ---
 
-func controllerHasFinalizer(cr *forgev1.JobTemplate) bool {
+func controllerHasFinalizer(cr *forailv1.JobTemplate) bool {
 	for _, f := range cr.Finalizers {
 		if f == finalizer {
 			return true
@@ -253,7 +253,7 @@ func removeString(slice []string, s string) []string {
 	return out
 }
 
-func setCondition(cr *forgev1.JobTemplate, condType string, status metav1.ConditionStatus, reason, msg string) {
+func setCondition(cr *forailv1.JobTemplate, condType string, status metav1.ConditionStatus, reason, msg string) {
 	now := metav1.Now()
 	for i, c := range cr.Status.Conditions {
 		if c.Type == condType {
@@ -278,7 +278,7 @@ func setCondition(cr *forgev1.JobTemplate, condType string, status metav1.Condit
 }
 
 // equalJobTemplate compares only the fields the operator manages.
-func equalJobTemplate(a, b *forgeapi.JobTemplate) bool {
+func equalJobTemplate(a, b *forailapi.JobTemplate) bool {
 	return a.Name == b.Name &&
 		a.Description == b.Description &&
 		a.JobType == b.JobType &&

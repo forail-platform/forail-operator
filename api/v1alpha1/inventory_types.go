@@ -44,9 +44,9 @@ type InventoryGroup struct {
 	Children []string `json:"children,omitempty"`
 }
 
-// InventorySpec defines the desired state of a Forge Inventory.
+// InventorySpec defines the desired state of a Forail Inventory.
 type InventorySpec struct {
-	// Display name in Forge. Defaults to metadata.name.
+	// Display name in Forail. Defaults to metadata.name.
 	// +optional
 	Name string `json:"name,omitempty"`
 
@@ -71,10 +71,10 @@ type InventorySpec struct {
 	Groups []InventoryGroup `json:"groups,omitempty"`
 }
 
-// InventoryStatus reflects the observed Forge state.
+// InventoryStatus reflects the observed Forail state.
 type InventoryStatus struct {
 	// +optional
-	ForgeID int64 `json:"forgeId,omitempty"`
+	ForailID int64 `json:"forailId,omitempty"`
 
 	// +optional
 	HostCount int32 `json:"hostCount,omitempty"`
@@ -93,8 +93,8 @@ type InventoryStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=inv,categories=forge
-// +kubebuilder:printcolumn:name="Forge ID",type=integer,JSONPath=`.status.forgeId`
+// +kubebuilder:resource:shortName=inv,categories=forail
+// +kubebuilder:printcolumn:name="Forail ID",type=integer,JSONPath=`.status.forailId`
 // +kubebuilder:printcolumn:name="Org",type=string,JSONPath=`.spec.organization`
 // +kubebuilder:printcolumn:name="Hosts",type=integer,JSONPath=`.status.hostCount`
 // +kubebuilder:printcolumn:name="Groups",type=integer,JSONPath=`.status.groupCount`

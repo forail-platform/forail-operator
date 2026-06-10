@@ -9,11 +9,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
 )
 
 func TestTeamLifecycle(t *testing.T) {
-	mock := newMockForge()
+	mock := newMockForail()
 	srv, _ := mock.start(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -21,9 +21,9 @@ func TestTeamLifecycle(t *testing.T) {
 	stop := newManager(t, ctx, srv.URL, "test-token")
 	defer stop()
 
-	cr := &forgev1.Team{
+	cr := &forailv1.Team{
 		ObjectMeta: metav1.ObjectMeta{Name: "oncall", Namespace: "default"},
-		Spec: forgev1.TeamSpec{
+		Spec: forailv1.TeamSpec{
 			Description:  "On-call rotation",
 			Organization: "Default",
 			Users:        []string{"admin"},
@@ -34,13 +34,13 @@ func TestTeamLifecycle(t *testing.T) {
 	}
 
 	if !pollUntil(t, 10*time.Second, func() bool {
-		var got forgev1.Team
+		var got forailv1.Team
 		if err := k8sClient.Get(ctx, types.NamespacedName{Name: "oncall", Namespace: "default"}, &got); err != nil {
 			return false
 		}
-		return got.Status.ForgeID > 0
+		return got.Status.ForailID > 0
 	}) {
-		t.Fatal("timeout: forgeId not set")
+		t.Fatal("timeout: forailId not set")
 	}
 	if mock.CallCount("POST teams") < 1 {
 		t.Fatal("expected POST teams")
@@ -60,7 +60,7 @@ func TestTeamLifecycle(t *testing.T) {
 		t.Fatal("timeout: DELETE team never called")
 	}
 	if !pollUntil(t, 10*time.Second, func() bool {
-		var x forgev1.Team
+		var x forailv1.Team
 		err := k8sClient.Get(ctx, types.NamespacedName{Name: "oncall", Namespace: "default"}, &x)
 		return apierrors.IsNotFound(err)
 	}) {

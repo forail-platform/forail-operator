@@ -4,11 +4,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// OrganizationSpec mirrors Forge `/api/v2/organizations/`.
+// OrganizationSpec mirrors Forail `/api/v2/organizations/`.
 // Organizations are the top-level tenant container — every other resource
 // (Project, Inventory, JobTemplate, Team) belongs to exactly one.
 type OrganizationSpec struct {
-	// Display name in Forge. Defaults to metadata.name.
+	// Display name in Forail. Defaults to metadata.name.
 	// +optional
 	Name string `json:"name,omitempty"`
 
@@ -25,14 +25,14 @@ type OrganizationSpec struct {
 	// +optional
 	DefaultEnvironment string `json:"defaultEnvironment,omitempty"`
 
-	// Optional ForgeInstance reference (for multi-cluster). Empty = default.
+	// Optional ForailInstance reference (for multi-cluster). Empty = default.
 	// +optional
-	ForgeInstance string `json:"forgeInstance,omitempty"`
+	ForailInstance string `json:"forailInstance,omitempty"`
 }
 
 type OrganizationStatus struct {
 	// +optional
-	ForgeID int64 `json:"forgeId,omitempty"`
+	ForailID int64 `json:"forailId,omitempty"`
 
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
@@ -45,8 +45,8 @@ type OrganizationStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=org,categories=forge
-// +kubebuilder:printcolumn:name="Forge ID",type=integer,JSONPath=`.status.forgeId`
+// +kubebuilder:resource:shortName=org,categories=forail
+// +kubebuilder:printcolumn:name="Forail ID",type=integer,JSONPath=`.status.forailId`
 // +kubebuilder:printcolumn:name="Max Hosts",type=integer,JSONPath=`.spec.maxHosts`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`

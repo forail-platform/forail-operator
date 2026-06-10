@@ -1,17 +1,17 @@
-# forge-operator
+# forail-operator
 
-[![CI](https://github.com/forgeplatform/forge-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/forgeplatform/forge-operator/actions/workflows/ci.yml)
+[![CI](https://github.com/forail-platform/forail-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/forail-platform/forail-operator/actions/workflows/ci.yml)
 
-A Kubernetes operator that reconciles native Forge Platform resources
+A Kubernetes operator that reconciles native Forail Platform resources
 (Organizations, Teams, Projects, Inventories, Credentials, JobTemplates,
 Schedules, Workflows) declared as Kubernetes Custom Resources. Each CR is
-translated to a Forge REST API call so the cluster becomes the source of
+translated to a Forail REST API call so the cluster becomes the source of
 truth — `kubectl apply -f workflow.yaml` builds the corresponding
-WorkflowJobTemplate + DAG inside Forge; `kubectl delete` removes it.
+WorkflowJobTemplate + DAG inside Forail; `kubectl delete` removes it.
 
 ## At a glance
 
-| CRD | Forge resource | Notes |
+| CRD | Forail resource | Notes |
 |---|---|---|
 | `Organization` | `/api/v2/organizations/` | Top-level tenant, max-host quota |
 | `Team` | `/api/v2/teams/` | Membership reconciled via `/teams/{id}/users/` |
@@ -21,33 +21,33 @@ WorkflowJobTemplate + DAG inside Forge; `kubectl delete` removes it.
 | `JobTemplate` | `/api/v2/job_templates/` | Multi-credential attach |
 | `Schedule` | `/api/v2/schedules/` | RFC 5545 RRULE |
 | `Workflow` | `/api/v2/workflow_job_templates/` | Declarative DAG (nodes + edges) |
-| `ForgeInstance` | n/a (control plane) | Pointer to a Forge backend for multi-cluster |
+| `ForailInstance` | n/a (control plane) | Pointer to a Forail backend for multi-cluster |
 
-All CRDs live in API group `forge.forgeplatform.io/v1alpha1`.
+All CRDs live in API group `forail.forail-platform.io/v1alpha1`.
 
 ## Multi-cluster
 
-A single operator deployment can sync against any number of Forge
-backends. Declare each backend as a `ForgeInstance`:
+A single operator deployment can sync against any number of Forail
+backends. Declare each backend as a `ForailInstance`:
 
 ```yaml
 apiVersion: v1
 kind: Secret
-metadata: { name: forge-eu-token, namespace: default }
+metadata: { name: forail-eu-token, namespace: default }
 stringData:
-  token: <PAT from forge-manage create_oauth2_token>
+  token: <PAT from forail-manage create_oauth2_token>
 ---
-apiVersion: forge.forgeplatform.io/v1alpha1
-kind: ForgeInstance
-metadata: { name: forge-eu, namespace: default }
+apiVersion: forail.forail-platform.io/v1alpha1
+kind: ForailInstance
+metadata: { name: forail-eu, namespace: default }
 spec:
-  url: https://forge-eu.example.com
-  tokenSecretRef: { name: forge-eu-token, key: token }
+  url: https://forail-eu.example.com
+  tokenSecretRef: { name: forail-eu-token, key: token }
 ```
 
-Then point any CR at it via `spec.forgeInstance: forge-eu`. CRs that
+Then point any CR at it via `spec.forailInstance: forail-eu`. CRs that
 omit the field fall back to the global default supplied via
-`--forge-url` / `--forge-token`. The reconcile loop on `ForgeInstance`
+`--forail-url` / `--forail-token`. The reconcile loop on `ForailInstance`
 also probes `/api/v2/ping/` every 60 seconds and surfaces reachability
 + server version in `status`.
 
@@ -56,11 +56,11 @@ also probes `/api/v2/ping/` every 60 seconds and surfaces reachability
 ### Via Helm (recommended for dev)
 
 ```bash
-TOKEN=$(kubectl -n forge exec deploy/forge-web -- \
-    forge-manage create_oauth2_token --user admin | tail -1)
-helm install forge-operator ./helm -n forge-operator --create-namespace \
-    --set forge.url=http://forge-web.forge.svc.cluster.local:8013 \
-    --set forge.token=$TOKEN
+TOKEN=$(kubectl -n forail exec deploy/forail-web -- \
+    forail-manage create_oauth2_token --user admin | tail -1)
+helm install forail-operator ./helm -n forail-operator --create-namespace \
+    --set forail.url=http://forail-web.forail.svc.cluster.local:8013 \
+    --set forail.token=$TOKEN
 ```
 
 ### Via OLM (recommended for OpenShift / OperatorHub)
@@ -68,32 +68,32 @@ helm install forge-operator ./helm -n forge-operator --create-namespace \
 ```bash
 # 1. Build + push bundle and catalog images.
 make bundle bundle-build bundle-push \
-    BUNDLE_IMG=krlex/forge-operator-bundle:v1.0.0
+    BUNDLE_IMG=krlex/forail-operator-bundle:v1.0.0
 make catalog-build catalog-push \
-    BUNDLE_IMG=krlex/forge-operator-bundle:v1.0.0 \
-    CATALOG_IMG=krlex/forge-operator-catalog:v1.0.0
+    BUNDLE_IMG=krlex/forail-operator-bundle:v1.0.0 \
+    CATALOG_IMG=krlex/forail-operator-catalog:v1.0.0
 
 # 2. Apply a CatalogSource pointing at the catalog image.
 cat <<EOF | kubectl apply -f -
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
-metadata: { name: forge, namespace: olm }
+metadata: { name: forail, namespace: olm }
 spec:
   sourceType: grpc
-  image: krlex/forge-operator-catalog:v1.0.0
-  displayName: Forge Operators
-  publisher: Forge Platform
+  image: krlex/forail-operator-catalog:v1.0.0
+  displayName: Forail Operators
+  publisher: Forail Platform
 EOF
 
 # 3. Subscribe.
 cat <<EOF | kubectl apply -f -
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
-metadata: { name: forge-operator, namespace: operators }
+metadata: { name: forail-operator, namespace: operators }
 spec:
   channel: alpha
-  name: forge-operator
-  source: forge
+  name: forail-operator
+  source: forail
   sourceNamespace: olm
 EOF
 ```
@@ -104,12 +104,12 @@ operator in `AllNamespaces` mode.
 ## Layout
 
 ```
-forge-operator/
+forail-operator/
 ├── api/v1alpha1/                          # 9 CRD type definitions
 ├── internal/
 │   ├── controller/                        # one reconciler per CRD
-│   ├── forgeapi/                          # thin client over Forge REST
-│   │   └── clientpool.go                  # per-ForgeInstance routing
+│   ├── forailapi/                          # thin client over Forail REST
+│   │   └── clientpool.go                  # per-ForailInstance routing
 │   └── ...
 ├── cmd/main.go                            # manager bootstrap
 ├── config/
@@ -131,7 +131,7 @@ make manifests     # regen config/crd/bases/*.yaml + config/rbac/role.yaml
 make build         # binary at bin/manager
 make vet
 make test          # envtest-driven integration tests
-make docker-build  # build IMAGE=krlex/forge-operator:latest
+make docker-build  # build IMAGE=krlex/forail-operator:latest
 make bundle        # populate bundle/manifests/ from CRDs + CSV base
 make run           # run the operator out-of-cluster against $KUBECONFIG
 ```
@@ -141,6 +141,6 @@ takes a minute as it fetches the matching apiserver + etcd binaries.
 
 ## See also
 
-- [forge-dev-cluster](../forge-dev-cluster) — k3s test cluster (3 m + 4 w)
-- [forge-helm](../forge-helm) — Helm chart for the Forge platform itself
-- [Forge backend](../forge-backend) — Django API the operator drives
+- [forail-dev-cluster](../forail-dev-cluster) — k3s test cluster (3 m + 4 w)
+- [forail-helm](../forail-helm) — Helm chart for the Forail platform itself
+- [Forail backend](../forail-backend) — Django API the operator drives

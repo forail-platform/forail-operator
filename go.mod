@@ -1,4 +1,4 @@
-module github.com/forgeplatform/forge-operator
+module github.com/forail-platform/forail-operator
 
 go 1.23
 

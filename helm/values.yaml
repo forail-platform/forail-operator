@@ -1,29 +1,29 @@
-# forge-operator — Helm values
+# forail-operator — Helm values
 
 # ── Image ─────────────────────────────────────────────────
 image:
-  repository: ghcr.io/forgeplatform/forge-operator
+  repository: ghcr.io/forail-platform/forail-operator
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 
 # Public ghcr.io images do not require pull secrets.
 imagePullSecrets: []
 
-# ── Forge connection ─────────────────────────────────────
-forge:
-  # In-cluster URL to the forge-web service. Override if using an external
-  # Forge instance.
-  url: http://forge-web.forge.svc.cluster.local:8013
+# ── Forail connection ─────────────────────────────────────
+forail:
+  # In-cluster URL to the forail-web service. Override if using an external
+  # Forail instance.
+  url: http://forail-web.forail.svc.cluster.local:8013
 
-  # Skip TLS verification (only when forge.url is HTTPS with self-signed).
+  # Skip TLS verification (only when forail.url is HTTPS with self-signed).
   insecureSkipVerify: false
 
-  # Optional Host header override — needed when reaching Forge through
-  # an Ingress that routes by hostname but forge.url uses an IP.
+  # Optional Host header override — needed when reaching Forail through
+  # an Ingress that routes by hostname but forail.url uses an IP.
   hostHeader: ""
 
   # OAuth2 personal access token. Generate with:
-  #   kubectl -n forge exec deploy/forge-web -- forge-manage create_oauth2_token --user admin
+  #   kubectl -n forail exec deploy/forail-web -- forail-manage create_oauth2_token --user admin
   # Set token directly here, or set existingSecret to point at a
   # pre-created Secret with key "token".
   token: ""
@@ -44,7 +44,7 @@ rbac:
 
 serviceAccount:
   create: true
-  name: forge-operator
+  name: forail-operator
 
 # ── Metrics / Probes ─────────────────────────────────────
 metrics:
@@ -55,7 +55,7 @@ probe:
 # ── CRDs ─────────────────────────────────────────────────
 # Helm installs files under crds/ on `helm install`, but does not
 # update them on upgrade — that is by Helm design. To force a refresh:
-#   helm uninstall forge-operator && helm install forge-operator ...
+#   helm uninstall forail-operator && helm install forail-operator ...
 # Or apply manually: kubectl apply -f config/crd/bases/
 crds:
   install: true

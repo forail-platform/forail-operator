@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forail-eu-token
+  namespace: default
+type: Opaque
+stringData:
+  # Issue a PAT inside the target Forail:
+  #   forail-manage create_oauth2_token --user admin
+  token: PUT_THE_BEARER_TOKEN_HERE
+---
+apiVersion: forail.forail-platform.io/v1alpha1
+kind: ForailInstance
+metadata:
+  name: forail-eu
+  namespace: default
+spec:
+  url: https://forail-eu.example.com
+  hostHeader: forail-eu.example.com
+  insecureSkipVerify: false
+  tokenSecretRef:
+    name: forail-eu-token
+    key: token
+---
+# A Project CR pinned to the forail-eu instance.
+apiVersion: forail.forail-platform.io/v1alpha1
+kind: Project
+metadata:
+  name: eu-platform-roles
+  namespace: default
+spec:
+  forailInstance: forail-eu
+  organization: Default
+  scmType: git
+  scmUrl: https://github.com/mycorp/eu-platform-roles.git
+  scmBranch: main

@@ -4,13 +4,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// JobTemplateSpec defines the desired state of a Forge JobTemplate.
+// JobTemplateSpec defines the desired state of a Forail JobTemplate.
 //
-// Mirrors a subset of the upstream Forge `/api/v2/job_templates/` resource.
+// Mirrors a subset of the upstream Forail `/api/v2/job_templates/` resource.
 // Reference fields (inventory, project, organization) are by name — the
-// operator resolves them to numeric IDs via the Forge API at reconcile time.
+// operator resolves them to numeric IDs via the Forail API at reconcile time.
 type JobTemplateSpec struct {
-	// Display name in Forge. Defaults to the metadata.name of the CR.
+	// Display name in Forail. Defaults to the metadata.name of the CR.
 	// +optional
 	Name string `json:"name,omitempty"`
 
@@ -21,15 +21,15 @@ type JobTemplateSpec struct {
 	// +kubebuilder:default=run
 	JobType string `json:"jobType,omitempty"`
 
-	// Forge organization name. Required if Forge has multi-tenant orgs.
+	// Forail organization name. Required if Forail has multi-tenant orgs.
 	// +optional
 	Organization string `json:"organization,omitempty"`
 
-	// Inventory name (looked up by name in Forge).
+	// Inventory name (looked up by name in Forail).
 	// +kubebuilder:validation:Required
 	Inventory string `json:"inventory"`
 
-	// Project name (looked up by name in Forge).
+	// Project name (looked up by name in Forail).
 	// +kubebuilder:validation:Required
 	Project string `json:"project"`
 
@@ -37,7 +37,7 @@ type JobTemplateSpec struct {
 	// +kubebuilder:validation:Required
 	Playbook string `json:"playbook"`
 
-	// Forks (parallelism). 0 = use Forge default.
+	// Forks (parallelism). 0 = use Forail default.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=0
 	// +optional
@@ -73,11 +73,11 @@ type JobTemplateSpec struct {
 	AskLimitOnLaunch bool `json:"askLimitOnLaunch,omitempty"`
 }
 
-// JobTemplateStatus reflects the observed state in Forge.
+// JobTemplateStatus reflects the observed state in Forail.
 type JobTemplateStatus struct {
-	// Forge JobTemplate numeric ID (assigned on first successful create).
+	// Forail JobTemplate numeric ID (assigned on first successful create).
 	// +optional
-	ForgeID int64 `json:"forgeId,omitempty"`
+	ForailID int64 `json:"forailId,omitempty"`
 
 	// ObservedGeneration tracks the last spec generation reconciled.
 	// +optional
@@ -92,8 +92,8 @@ type JobTemplateStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:shortName=jt;jobtmpl,categories=forge
-// +kubebuilder:printcolumn:name="Forge ID",type=integer,JSONPath=`.status.forgeId`
+// +kubebuilder:resource:shortName=jt;jobtmpl,categories=forail
+// +kubebuilder:printcolumn:name="Forail ID",type=integer,JSONPath=`.status.forailId`
 // +kubebuilder:printcolumn:name="Inventory",type=string,JSONPath=`.spec.inventory`
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`
 // +kubebuilder:printcolumn:name="Playbook",type=string,JSONPath=`.spec.playbook`

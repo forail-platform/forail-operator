@@ -1,0 +1,119 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: jobtemplates.forail.forail-platform.io
+spec:
+  group: forail.forail-platform.io
+  names:
+    kind: JobTemplate
+    listKind: JobTemplateList
+    plural: jobtemplates
+    singular: jobtemplate
+    shortNames: [jt, jobtmpl]
+    categories: [forail]
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+        - name: Forail ID
+          type: integer
+          jsonPath: .status.forailId
+        - name: Inventory
+          type: string
+          jsonPath: .spec.inventory
+        - name: Project
+          type: string
+          jsonPath: .spec.project
+        - name: Playbook
+          type: string
+          jsonPath: .spec.playbook
+        - name: Ready
+          type: string
+          jsonPath: .status.conditions[?(@.type=="Ready")].status
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          required: [spec]
+          properties:
+            spec:
+              type: object
+              required: [inventory, project, playbook]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                jobType:
+                  type: string
+                  enum: [run, check]
+                  default: run
+                organization:
+                  type: string
+                inventory:
+                  type: string
+                project:
+                  type: string
+                playbook:
+                  type: string
+                forks:
+                  type: integer
+                  minimum: 0
+                  default: 0
+                verbosity:
+                  type: integer
+                  minimum: 0
+                  maximum: 5
+                  default: 0
+                extraVars:
+                  type: string
+                credentials:
+                  type: array
+                  items:
+                    type: string
+                limit:
+                  type: string
+                askInventoryOnLaunch:
+                  type: boolean
+                askCredentialOnLaunch:
+                  type: boolean
+                askVariablesOnLaunch:
+                  type: boolean
+                askLimitOnLaunch:
+                  type: boolean
+            status:
+              type: object
+              properties:
+                forailId:
+                  type: integer
+                  format: int64
+                observedGeneration:
+                  type: integer
+                  format: int64
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required: [type, status, lastTransitionTime, reason]
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      observedGeneration:
+                        type: integer
+                        format: int64
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string

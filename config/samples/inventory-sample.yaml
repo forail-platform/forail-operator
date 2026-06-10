@@ -1,10 +1,10 @@
-apiVersion: forge.forgeplatform.io/v1alpha1
+apiVersion: forail.forail-platform.io/v1alpha1
 kind: Inventory
 metadata:
   name: production
   namespace: default
 spec:
-  description: "Production inventory managed by forge-operator"
+  description: "Production inventory managed by forail-operator"
   organization: Default
   variables: |
     ansible_user: deploy

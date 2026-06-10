@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
 )
 
 // Shared envtest fixtures, started once per test binary run.
@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 	_, thisFile, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(thisFile), "..", "..")
 
-	utilruntime.Must(forgev1.AddToScheme(scheme))
+	utilruntime.Must(forailv1.AddToScheme(scheme))
 
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths:     []string{filepath.Join(root, "config", "crd", "bases")},
@@ -67,12 +67,12 @@ func TestMain(m *testing.M) {
 }
 
 // newManager wires the four reconcilers against the envtest apiserver
-// using the given Forge HTTP base URL. Returns a stop func.
+// using the given Forail HTTP base URL. Returns a stop func.
 //
 // Each test gets its own controller-name suffix to avoid the
 // "controller with name X already exists" collision when multiple
 // tests run sequentially in the same process.
-func newManager(t *testing.T, ctx context.Context, forgeURL, forgeToken string) func() {
+func newManager(t *testing.T, ctx context.Context, forailURL, forailToken string) func() {
 	t.Helper()
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -83,64 +83,64 @@ func newManager(t *testing.T, ctx context.Context, forgeURL, forgeToken string) 
 	if err != nil {
 		t.Fatalf("manager: %v", err)
 	}
-	fc := newTestForgeClient(forgeURL, forgeToken)
+	fc := newTestForailClient(forailURL, forailToken)
 	pool := newTestClientPool(fc, mgr.GetClient())
 
 	suffix := "-" + t.Name()
 
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.JobTemplate{}).
+		For(&forailv1.JobTemplate{}).
 		Named("jobtemplate" + suffix).
-		Complete(&JobTemplateReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
+		Complete(&JobTemplateReconciler{Client: mgr.GetClient(), Scheme: scheme, Forail: fc}); err != nil {
 		t.Fatalf("setup jobtemplate: %v", err)
 	}
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Inventory{}).
+		For(&forailv1.Inventory{}).
 		Named("inventory" + suffix).
-		Complete(&InventoryReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
+		Complete(&InventoryReconciler{Client: mgr.GetClient(), Scheme: scheme, Forail: fc}); err != nil {
 		t.Fatalf("setup inventory: %v", err)
 	}
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Credential{}).
+		For(&forailv1.Credential{}).
 		Named("credential" + suffix).
-		Complete(&CredentialReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
+		Complete(&CredentialReconciler{Client: mgr.GetClient(), Scheme: scheme, Forail: fc}); err != nil {
 		t.Fatalf("setup credential: %v", err)
 	}
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Schedule{}).
+		For(&forailv1.Schedule{}).
 		Named("schedule" + suffix).
-		Complete(&ScheduleReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc}); err != nil {
+		Complete(&ScheduleReconciler{Client: mgr.GetClient(), Scheme: scheme, Forail: fc}); err != nil {
 		t.Fatalf("setup schedule: %v", err)
 	}
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Project{}).
+		For(&forailv1.Project{}).
 		Named("project" + suffix).
-		Complete(&ProjectReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc, Pool: pool}); err != nil {
+		Complete(&ProjectReconciler{Client: mgr.GetClient(), Scheme: scheme, Forail: fc, Pool: pool}); err != nil {
 		t.Fatalf("setup project: %v", err)
 	}
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Organization{}).
+		For(&forailv1.Organization{}).
 		Named("organization" + suffix).
-		Complete(&OrganizationReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc, Pool: pool}); err != nil {
+		Complete(&OrganizationReconciler{Client: mgr.GetClient(), Scheme: scheme, Forail: fc, Pool: pool}); err != nil {
 		t.Fatalf("setup organization: %v", err)
 	}
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Team{}).
+		For(&forailv1.Team{}).
 		Named("team" + suffix).
-		Complete(&TeamReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc, Pool: pool}); err != nil {
+		Complete(&TeamReconciler{Client: mgr.GetClient(), Scheme: scheme, Forail: fc, Pool: pool}); err != nil {
 		t.Fatalf("setup team: %v", err)
 	}
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Workflow{}).
+		For(&forailv1.Workflow{}).
 		Named("workflow" + suffix).
-		Complete(&WorkflowReconciler{Client: mgr.GetClient(), Scheme: scheme, Forge: fc, Pool: pool}); err != nil {
+		Complete(&WorkflowReconciler{Client: mgr.GetClient(), Scheme: scheme, Forail: fc, Pool: pool}); err != nil {
 		t.Fatalf("setup workflow: %v", err)
 	}
 	if err := ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.ForgeInstance{}).
-		Named("forgeinstance" + suffix).
-		Complete(&ForgeInstanceReconciler{Client: mgr.GetClient(), Scheme: scheme, Pool: pool}); err != nil {
-		t.Fatalf("setup forgeinstance: %v", err)
+		For(&forailv1.ForailInstance{}).
+		Named("forailinstance" + suffix).
+		Complete(&ForailInstanceReconciler{Client: mgr.GetClient(), Scheme: scheme, Pool: pool}); err != nil {
+		t.Fatalf("setup forailinstance: %v", err)
 	}
 
 	mgrCtx, cancel := context.WithCancel(ctx)

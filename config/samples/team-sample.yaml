@@ -1,4 +1,4 @@
-apiVersion: forge.forgeplatform.io/v1alpha1
+apiVersion: forail.forail-platform.io/v1alpha1
 kind: Team
 metadata:
   name: platform-oncall
@@ -8,5 +8,5 @@ spec:
   organization: Default
   users:
     - admin
-    # add Forge usernames here; the controller maintains team membership
+    # add Forail usernames here; the controller maintains team membership
     # via /api/v2/teams/{id}/users/ on every reconcile (60s drift loop).

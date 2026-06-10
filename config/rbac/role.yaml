@@ -13,10 +13,10 @@ rules:
   - list
   - watch
 - apiGroups:
-  - forge.forgeplatform.io
+  - forail.forail-platform.io
   resources:
   - credentials
-  - forgeinstances
+  - forailinstances
   - inventories
   - jobtemplates
   - organizations
@@ -33,7 +33,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - forge.forgeplatform.io
+  - forail.forail-platform.io
   resources:
   - credentials/finalizers
   - inventories/finalizers
@@ -46,10 +46,10 @@ rules:
   verbs:
   - update
 - apiGroups:
-  - forge.forgeplatform.io
+  - forail.forail-platform.io
   resources:
   - credentials/status
-  - forgeinstances/status
+  - forailinstances/status
   - inventories/status
   - jobtemplates/status
   - organizations/status

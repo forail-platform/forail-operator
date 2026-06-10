@@ -14,32 +14,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
-	"github.com/forgeplatform/forge-operator/internal/forgeapi"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
+	"github.com/forail-platform/forail-operator/internal/forailapi"
 )
 
 const (
-	scheduleFinalizer = "schedule.forge.forgeplatform.io/finalizer"
+	scheduleFinalizer = "schedule.forail.forail-platform.io/finalizer"
 )
 
-// ScheduleReconciler reconciles a Schedule CR with Forge.
+// ScheduleReconciler reconciles a Schedule CR with Forail.
 //
 // Schedules attach to a JobTemplate via unified_job_template. We resolve
 // the JobTemplate by name on each reconcile (cheap GET with name filter).
 type ScheduleReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Forge  *forgeapi.Client
+	Forail  *forailapi.Client
 }
 
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=schedules,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=schedules/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=schedules/finalizers,verbs=update
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=schedules,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=schedules/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=schedules/finalizers,verbs=update
 
 func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var cr forgev1.Schedule
+	var cr forailv1.Schedule
 	if err := r.Get(ctx, req.NamespacedName, &cr); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -48,11 +48,11 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if !cr.DeletionTimestamp.IsZero() {
-		if cr.Status.ForgeID > 0 {
-			if err := r.Forge.DeleteSchedule(ctx, cr.Status.ForgeID); err != nil && !forgeapi.IsNotFound(err) {
+		if cr.Status.ForailID > 0 {
+			if err := r.Forail.DeleteSchedule(ctx, cr.Status.ForailID); err != nil && !forailapi.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
-			logger.Info("deleted Schedule from Forge", "id", cr.Status.ForgeID)
+			logger.Info("deleted Schedule from Forail", "id", cr.Status.ForailID)
 		}
 		cr.Finalizers = removeString(cr.Finalizers, scheduleFinalizer)
 		return ctrl.Result{}, r.Update(ctx, &cr)
@@ -66,14 +66,14 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// Resolve JobTemplate by name (Forge stores schedules by ID).
-	jt, err := r.Forge.FindJobTemplateByName(ctx, cr.Spec.JobTemplate)
+	// Resolve JobTemplate by name (Forail stores schedules by ID).
+	jt, err := r.Forail.FindJobTemplateByName(ctx, cr.Spec.JobTemplate)
 	if err != nil {
 		return r.markScheduleError(ctx, &cr, reasonAPIError, err)
 	}
 	if jt == nil {
 		return r.markScheduleError(ctx, &cr, reasonResolveErr,
-			fmt.Errorf("JobTemplate %q not found in Forge", cr.Spec.JobTemplate))
+			fmt.Errorf("JobTemplate %q not found in Forail", cr.Spec.JobTemplate))
 	}
 
 	enabled := true
@@ -85,7 +85,7 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if desiredName == "" {
 		desiredName = cr.Name
 	}
-	// Forge accepts extra_data as a YAML/JSON string. We marshal it
+	// Forail accepts extra_data as a YAML/JSON string. We marshal it
 	// as a JSON-encoded string literal so it round-trips cleanly.
 	var extraData json.RawMessage
 	if cr.Spec.ExtraData != "" {
@@ -95,7 +95,7 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		}
 		extraData = raw
 	}
-	desired := &forgeapi.Schedule{
+	desired := &forailapi.Schedule{
 		Name:               desiredName,
 		Description:        cr.Spec.Description,
 		RRule:              cr.Spec.RRule,
@@ -104,15 +104,15 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 		UnifiedJobTemplate: jt.ID,
 	}
 
-	current := (*forgeapi.Schedule)(nil)
-	if cr.Status.ForgeID > 0 {
-		current, err = r.Forge.GetSchedule(ctx, cr.Status.ForgeID)
-		if err != nil && !forgeapi.IsNotFound(err) {
+	current := (*forailapi.Schedule)(nil)
+	if cr.Status.ForailID > 0 {
+		current, err = r.Forail.GetSchedule(ctx, cr.Status.ForailID)
+		if err != nil && !forailapi.IsNotFound(err) {
 			return r.markScheduleError(ctx, &cr, reasonAPIError, err)
 		}
 	}
 	if current == nil {
-		current, err = r.Forge.FindScheduleByName(ctx, desiredName)
+		current, err = r.Forail.FindScheduleByName(ctx, desiredName)
 		if err != nil {
 			return r.markScheduleError(ctx, &cr, reasonAPIError, err)
 		}
@@ -120,28 +120,28 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	switch {
 	case current == nil:
-		created, err := r.Forge.CreateSchedule(ctx, desired)
+		created, err := r.Forail.CreateSchedule(ctx, desired)
 		if err != nil {
 			return r.markScheduleError(ctx, &cr, reasonAPIError, fmt.Errorf("create schedule: %w", err))
 		}
 		current = created
-		logger.Info("created Schedule in Forge", "id", current.ID, "name", current.Name)
+		logger.Info("created Schedule in Forail", "id", current.ID, "name", current.Name)
 	case current.Name != desired.Name || current.Description != desired.Description ||
 		current.RRule != desired.RRule || current.Enabled != desired.Enabled ||
 		!bytes.Equal(current.ExtraData, desired.ExtraData) || current.UnifiedJobTemplate != desired.UnifiedJobTemplate:
-		updated, err := r.Forge.UpdateSchedule(ctx, current.ID, desired)
+		updated, err := r.Forail.UpdateSchedule(ctx, current.ID, desired)
 		if err != nil {
 			return r.markScheduleError(ctx, &cr, reasonAPIError, fmt.Errorf("update schedule: %w", err))
 		}
 		current = updated
-		logger.Info("updated Schedule in Forge", "id", current.ID)
+		logger.Info("updated Schedule in Forail", "id", current.ID)
 	}
 
-	cr.Status.ForgeID = current.ID
+	cr.Status.ForailID = current.ID
 	cr.Status.JobTemplateID = jt.ID
 	cr.Status.NextRun = current.NextRun
 	cr.Status.ObservedGeneration = cr.Generation
-	setScheduleCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Schedule in sync with Forge")
+	setScheduleCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Schedule in sync with Forail")
 	setScheduleCondition(&cr, conditionReady, metav1.ConditionTrue, reasonInSync, "")
 	if err := r.Status().Update(ctx, &cr); err != nil {
 		return ctrl.Result{}, err
@@ -149,7 +149,7 @@ func (r *ScheduleReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
 }
 
-func (r *ScheduleReconciler) markScheduleError(ctx context.Context, cr *forgev1.Schedule, reason string, err error) (ctrl.Result, error) {
+func (r *ScheduleReconciler) markScheduleError(ctx context.Context, cr *forailv1.Schedule, reason string, err error) (ctrl.Result, error) {
 	setScheduleCondition(cr, conditionReady, metav1.ConditionFalse, reason, err.Error())
 	setScheduleCondition(cr, conditionSynced, metav1.ConditionFalse, reason, err.Error())
 	if uerr := r.Status().Update(ctx, cr); uerr != nil {
@@ -160,11 +160,11 @@ func (r *ScheduleReconciler) markScheduleError(ctx context.Context, cr *forgev1.
 
 func (r *ScheduleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Schedule{}).
+		For(&forailv1.Schedule{}).
 		Complete(r)
 }
 
-func setScheduleCondition(cr *forgev1.Schedule, condType string, status metav1.ConditionStatus, reason, msg string) {
+func setScheduleCondition(cr *forailv1.Schedule, condType string, status metav1.ConditionStatus, reason, msg string) {
 	now := metav1.Now()
 	for i, c := range cr.Status.Conditions {
 		if c.Type == condType {

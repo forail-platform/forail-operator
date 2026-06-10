@@ -12,9 +12,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
-	"github.com/forgeplatform/forge-operator/internal/controller"
-	"github.com/forgeplatform/forge-operator/internal/forgeapi"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
+	"github.com/forail-platform/forail-operator/internal/controller"
+	"github.com/forail-platform/forail-operator/internal/forailapi"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(forgev1.AddToScheme(scheme))
+	utilruntime.Must(forailv1.AddToScheme(scheme))
 }
 
 func main() {
@@ -32,26 +32,26 @@ func main() {
 		metricsAddr          string
 		probeAddr            string
 		enableLeaderElection bool
-		forgeURL        string
-		forgeToken      string
-		forgeHostHeader string
-		forgeInsecure   bool
+		forailURL        string
+		forailToken      string
+		forailHostHeader string
+		forailInsecure   bool
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "Metrics endpoint")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "Health probe endpoint")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election")
-	flag.StringVar(&forgeURL, "forge-url", os.Getenv("FORGE_URL"), "Forge API base URL (e.g. https://forge-web.forge.svc.cluster.local:8013)")
-	flag.StringVar(&forgeToken, "forge-token", os.Getenv("FORGE_TOKEN"), "Forge OAuth2 personal access token (Bearer)")
-	flag.StringVar(&forgeHostHeader, "forge-host-header", os.Getenv("FORGE_HOST_HEADER"), "Host header to send (when reaching Forge via host-routed Ingress)")
-	flag.BoolVar(&forgeInsecure, "forge-insecure-skip-verify", os.Getenv("FORGE_INSECURE") == "true", "Skip TLS verify on Forge API (test only)")
+	flag.StringVar(&forailURL, "forail-url", os.Getenv("FORAIL_URL"), "Forail API base URL (e.g. https://forail-web.forail.svc.cluster.local:8013)")
+	flag.StringVar(&forailToken, "forail-token", os.Getenv("FORAIL_TOKEN"), "Forail OAuth2 personal access token (Bearer)")
+	flag.StringVar(&forailHostHeader, "forail-host-header", os.Getenv("FORAIL_HOST_HEADER"), "Host header to send (when reaching Forail via host-routed Ingress)")
+	flag.BoolVar(&forailInsecure, "forail-insecure-skip-verify", os.Getenv("FORAIL_INSECURE") == "true", "Skip TLS verify on Forail API (test only)")
 	opts := zap.Options{Development: true}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	if forgeURL == "" || forgeToken == "" {
-		setupLog.Info("no default Forge backend configured; CRs without spec.forgeInstance will not reconcile until --forge-url and --forge-token (or FORGE_URL / FORGE_TOKEN env) are set")
+	if forailURL == "" || forailToken == "" {
+		setupLog.Info("no default Forail backend configured; CRs without spec.forailInstance will not reconcile until --forail-url and --forail-token (or FORAIL_URL / FORAIL_TOKEN env) are set")
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
@@ -59,29 +59,29 @@ func main() {
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "forge-operator-leader.forge.forgeplatform.io",
+		LeaderElectionID:       "forail-operator-leader.forail.forail-platform.io",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	forgeClient := forgeapi.New(forgeURL, forgeToken, forgeHostHeader, forgeInsecure)
-	pool := forgeapi.NewClientPool(forgeClient, mgr.GetClient())
+	forailClient := forailapi.New(forailURL, forailToken, forailHostHeader, forailInsecure)
+	pool := forailapi.NewClientPool(forailClient, mgr.GetClient())
 
-	if err := (&controller.ForgeInstanceReconciler{
+	if err := (&controller.ForailInstanceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 		Pool:   pool,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to set up ForgeInstance controller")
+		setupLog.Error(err, "unable to set up ForailInstance controller")
 		os.Exit(1)
 	}
 
 	if err := (&controller.JobTemplateReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Forge:  forgeClient,
+		Forail:  forailClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to set up JobTemplate controller")
 		os.Exit(1)
@@ -90,7 +90,7 @@ func main() {
 	if err := (&controller.InventoryReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Forge:  forgeClient,
+		Forail:  forailClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to set up Inventory controller")
 		os.Exit(1)
@@ -99,7 +99,7 @@ func main() {
 	if err := (&controller.CredentialReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Forge:  forgeClient,
+		Forail:  forailClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to set up Credential controller")
 		os.Exit(1)
@@ -108,7 +108,7 @@ func main() {
 	if err := (&controller.ScheduleReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Forge:  forgeClient,
+		Forail:  forailClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to set up Schedule controller")
 		os.Exit(1)
@@ -117,7 +117,7 @@ func main() {
 	if err := (&controller.ProjectReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Forge:  forgeClient,
+		Forail:  forailClient,
 		Pool:   pool,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to set up Project controller")
@@ -127,7 +127,7 @@ func main() {
 	if err := (&controller.OrganizationReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Forge:  forgeClient,
+		Forail:  forailClient,
 		Pool:   pool,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to set up Organization controller")
@@ -137,7 +137,7 @@ func main() {
 	if err := (&controller.TeamReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Forge:  forgeClient,
+		Forail:  forailClient,
 		Pool:   pool,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to set up Team controller")
@@ -147,7 +147,7 @@ func main() {
 	if err := (&controller.WorkflowReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Forge:  forgeClient,
+		Forail:  forailClient,
 		Pool:   pool,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to set up Workflow controller")
@@ -163,7 +163,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager", "forgeURL", forgeURL)
+	setupLog.Info("starting manager", "forailURL", forailURL)
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "manager exited with error")
 		os.Exit(1)

@@ -36,13 +36,13 @@ We will credit you in the release notes unless you prefer to remain anonymous.
 
 In scope:
 
-- forge-operator (this repository) — controllers, webhooks, RBAC bundled with the operator
+- forail-operator (this repository) — controllers, webhooks, RBAC bundled with the operator
 - CRDs and admission validation logic
-- `forgeapi.ClientPool` credential handling and multi-cluster routing
+- `forailapi.ClientPool` credential handling and multi-cluster routing
 - OLM bundle manifests in `bundle/`
 
 Out of scope:
 
 - Vulnerabilities in upstream controller-runtime, operator-sdk, or k8s.io libraries
 - Issues caused by overly broad user-supplied RBAC bindings
-- Self-inflicted misconfiguration of `ForgeInstance` credentials
+- Self-inflicted misconfiguration of `ForailInstance` credentials

@@ -12,29 +12,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	forgev1 "github.com/forgeplatform/forge-operator/api/v1alpha1"
-	"github.com/forgeplatform/forge-operator/internal/forgeapi"
+	forailv1 "github.com/forail-platform/forail-operator/api/v1alpha1"
+	"github.com/forail-platform/forail-operator/internal/forailapi"
 )
 
 const (
-	inventoryFinalizer = "inventory.forge.forgeplatform.io/finalizer"
+	inventoryFinalizer = "inventory.forail.forail-platform.io/finalizer"
 )
 
-// InventoryReconciler reconciles an Inventory CR with Forge.
+// InventoryReconciler reconciles an Inventory CR with Forail.
 type InventoryReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-	Forge  *forgeapi.Client
+	Forail  *forailapi.Client
 }
 
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=inventories,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=inventories/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=forge.forgeplatform.io,resources=inventories/finalizers,verbs=update
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=inventories,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=inventories/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=forail.forail-platform.io,resources=inventories/finalizers,verbs=update
 
 func (r *InventoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
-	var cr forgev1.Inventory
+	var cr forailv1.Inventory
 	if err := r.Get(ctx, req.NamespacedName, &cr); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -43,11 +43,11 @@ func (r *InventoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if !cr.DeletionTimestamp.IsZero() {
-		if cr.Status.ForgeID > 0 {
-			if err := r.Forge.DeleteInventory(ctx, cr.Status.ForgeID); err != nil && !forgeapi.IsNotFound(err) {
+		if cr.Status.ForailID > 0 {
+			if err := r.Forail.DeleteInventory(ctx, cr.Status.ForailID); err != nil && !forailapi.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
-			logger.Info("deleted Inventory from Forge", "id", cr.Status.ForgeID)
+			logger.Info("deleted Inventory from Forail", "id", cr.Status.ForailID)
 		}
 		cr.Finalizers = removeString(cr.Finalizers, inventoryFinalizer)
 		return ctrl.Result{}, r.Update(ctx, &cr)
@@ -62,12 +62,12 @@ func (r *InventoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Resolve organization.
-	orgID, err := r.Forge.ResolveOrganization(ctx, cr.Spec.Organization)
+	orgID, err := r.Forail.ResolveOrganization(ctx, cr.Spec.Organization)
 	if err != nil {
 		return r.markInventoryError(ctx, &cr, reasonResolveErr, err)
 	}
 	if orgID < 0 {
-		return r.markInventoryError(ctx, &cr, reasonResolveErr, fmt.Errorf("organization %q not found in Forge", cr.Spec.Organization))
+		return r.markInventoryError(ctx, &cr, reasonResolveErr, fmt.Errorf("organization %q not found in Forail", cr.Spec.Organization))
 	}
 
 	desiredName := cr.Spec.Name
@@ -75,7 +75,7 @@ func (r *InventoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		desiredName = cr.Name
 	}
 
-	desired := &forgeapi.Inventory{
+	desired := &forailapi.Inventory{
 		Name:         desiredName,
 		Description:  cr.Spec.Description,
 		Organization: orgID,
@@ -83,35 +83,35 @@ func (r *InventoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Find or create.
-	current := (*forgeapi.Inventory)(nil)
-	if cr.Status.ForgeID > 0 {
-		current, err = r.Forge.GetInventory(ctx, cr.Status.ForgeID)
-		if err != nil && !forgeapi.IsNotFound(err) {
+	current := (*forailapi.Inventory)(nil)
+	if cr.Status.ForailID > 0 {
+		current, err = r.Forail.GetInventory(ctx, cr.Status.ForailID)
+		if err != nil && !forailapi.IsNotFound(err) {
 			return r.markInventoryError(ctx, &cr, reasonAPIError, err)
 		}
 	}
 	if current == nil {
-		current, err = r.Forge.FindInventoryByName(ctx, desiredName)
+		current, err = r.Forail.FindInventoryByName(ctx, desiredName)
 		if err != nil {
 			return r.markInventoryError(ctx, &cr, reasonAPIError, err)
 		}
 	}
 
 	if current == nil {
-		created, err := r.Forge.CreateInventory(ctx, desired)
+		created, err := r.Forail.CreateInventory(ctx, desired)
 		if err != nil {
 			return r.markInventoryError(ctx, &cr, reasonAPIError, fmt.Errorf("create inventory: %w", err))
 		}
 		current = created
-		logger.Info("created Inventory in Forge", "id", current.ID, "name", current.Name)
+		logger.Info("created Inventory in Forail", "id", current.ID, "name", current.Name)
 	} else if current.Name != desired.Name || current.Description != desired.Description ||
 		current.Organization != desired.Organization || current.Variables != desired.Variables {
-		updated, err := r.Forge.UpdateInventory(ctx, current.ID, desired)
+		updated, err := r.Forail.UpdateInventory(ctx, current.ID, desired)
 		if err != nil {
 			return r.markInventoryError(ctx, &cr, reasonAPIError, fmt.Errorf("update inventory: %w", err))
 		}
 		current = updated
-		logger.Info("updated Inventory in Forge", "id", current.ID)
+		logger.Info("updated Inventory in Forail", "id", current.ID)
 	}
 
 	// Sync hosts (idempotent).
@@ -126,16 +126,16 @@ func (r *InventoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Refresh totals from API for status.
-	refreshed, err := r.Forge.GetInventory(ctx, current.ID)
+	refreshed, err := r.Forail.GetInventory(ctx, current.ID)
 	if err == nil {
 		current = refreshed
 	}
 
-	cr.Status.ForgeID = current.ID
+	cr.Status.ForailID = current.ID
 	cr.Status.HostCount = current.HostsCount
 	cr.Status.GroupCount = current.GroupsCount
 	cr.Status.ObservedGeneration = cr.Generation
-	setInventoryCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Inventory in sync with Forge")
+	setInventoryCondition(&cr, conditionSynced, metav1.ConditionTrue, reasonInSync, "Inventory in sync with Forail")
 	setInventoryCondition(&cr, conditionReady, metav1.ConditionTrue, reasonInSync, "")
 	if err := r.Status().Update(ctx, &cr); err != nil {
 		return ctrl.Result{}, err
@@ -143,19 +143,19 @@ func (r *InventoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
 }
 
-// syncHosts ensures Forge has exactly the hosts listed in the spec.
+// syncHosts ensures Forail has exactly the hosts listed in the spec.
 // Returns a name -> id map for downstream group membership wiring.
-func (r *InventoryReconciler) syncHosts(ctx context.Context, cr *forgev1.Inventory, invID int64) (map[string]int64, error) {
-	currentHosts, err := r.Forge.ListHosts(ctx, invID)
+func (r *InventoryReconciler) syncHosts(ctx context.Context, cr *forailv1.Inventory, invID int64) (map[string]int64, error) {
+	currentHosts, err := r.Forail.ListHosts(ctx, invID)
 	if err != nil {
 		return nil, err
 	}
-	currentByName := map[string]forgeapi.Host{}
+	currentByName := map[string]forailapi.Host{}
 	for _, h := range currentHosts {
 		currentByName[h.Name] = h
 	}
 
-	desiredByName := map[string]forgev1.InventoryHost{}
+	desiredByName := map[string]forailv1.InventoryHost{}
 	for _, h := range cr.Spec.Hosts {
 		desiredByName[h.Name] = h
 	}
@@ -164,7 +164,7 @@ func (r *InventoryReconciler) syncHosts(ctx context.Context, cr *forgev1.Invento
 
 	// Create / update.
 	for name, dh := range desiredByName {
-		desired := &forgeapi.Host{
+		desired := &forailapi.Host{
 			Name:        dh.Name,
 			Description: dh.Description,
 			Enabled:     dh.Enabled,
@@ -173,7 +173,7 @@ func (r *InventoryReconciler) syncHosts(ctx context.Context, cr *forgev1.Invento
 		if cur, ok := currentByName[name]; ok {
 			if cur.Description != desired.Description || cur.Enabled != desired.Enabled ||
 				cur.Variables != desired.Variables {
-				updated, err := r.Forge.UpdateHost(ctx, cur.ID, desired)
+				updated, err := r.Forail.UpdateHost(ctx, cur.ID, desired)
 				if err != nil {
 					return nil, fmt.Errorf("update host %q: %w", name, err)
 				}
@@ -182,7 +182,7 @@ func (r *InventoryReconciler) syncHosts(ctx context.Context, cr *forgev1.Invento
 				idByName[name] = cur.ID
 			}
 		} else {
-			created, err := r.Forge.CreateHost(ctx, invID, desired)
+			created, err := r.Forail.CreateHost(ctx, invID, desired)
 			if err != nil {
 				return nil, fmt.Errorf("create host %q: %w", name, err)
 			}
@@ -193,7 +193,7 @@ func (r *InventoryReconciler) syncHosts(ctx context.Context, cr *forgev1.Invento
 	// Delete extras.
 	for name, cur := range currentByName {
 		if _, ok := desiredByName[name]; !ok {
-			if err := r.Forge.DeleteHost(ctx, cur.ID); err != nil {
+			if err := r.Forail.DeleteHost(ctx, cur.ID); err != nil {
 				return nil, fmt.Errorf("delete host %q: %w", name, err)
 			}
 		}
@@ -202,17 +202,17 @@ func (r *InventoryReconciler) syncHosts(ctx context.Context, cr *forgev1.Invento
 	return idByName, nil
 }
 
-func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Inventory, invID int64, hostIDByName map[string]int64) error {
-	currentGroups, err := r.Forge.ListGroups(ctx, invID)
+func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forailv1.Inventory, invID int64, hostIDByName map[string]int64) error {
+	currentGroups, err := r.Forail.ListGroups(ctx, invID)
 	if err != nil {
 		return err
 	}
-	currentByName := map[string]forgeapi.Group{}
+	currentByName := map[string]forailapi.Group{}
 	for _, g := range currentGroups {
 		currentByName[g.Name] = g
 	}
 
-	desiredByName := map[string]forgev1.InventoryGroup{}
+	desiredByName := map[string]forailv1.InventoryGroup{}
 	for _, g := range cr.Spec.Groups {
 		desiredByName[g.Name] = g
 	}
@@ -221,14 +221,14 @@ func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Invent
 
 	// Phase 1: create/update group records (without memberships).
 	for name, dg := range desiredByName {
-		desired := &forgeapi.Group{
+		desired := &forailapi.Group{
 			Name:        dg.Name,
 			Description: dg.Description,
 			Variables:   dg.Variables,
 		}
 		if cur, ok := currentByName[name]; ok {
 			if cur.Description != desired.Description || cur.Variables != desired.Variables {
-				updated, err := r.Forge.UpdateGroup(ctx, cur.ID, desired)
+				updated, err := r.Forail.UpdateGroup(ctx, cur.ID, desired)
 				if err != nil {
 					return fmt.Errorf("update group %q: %w", name, err)
 				}
@@ -237,7 +237,7 @@ func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Invent
 				idByName[name] = cur.ID
 			}
 		} else {
-			created, err := r.Forge.CreateGroup(ctx, invID, desired)
+			created, err := r.Forail.CreateGroup(ctx, invID, desired)
 			if err != nil {
 				return fmt.Errorf("create group %q: %w", name, err)
 			}
@@ -256,7 +256,7 @@ func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Invent
 			}
 			desiredHostIDs[hid] = struct{}{}
 		}
-		currentHostIDs, err := r.Forge.ListGroupHosts(ctx, groupID)
+		currentHostIDs, err := r.Forail.ListGroupHosts(ctx, groupID)
 		if err != nil {
 			return fmt.Errorf("list group hosts %q: %w", name, err)
 		}
@@ -266,14 +266,14 @@ func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Invent
 		}
 		for hid := range desiredHostIDs {
 			if _, ok := currentSet[hid]; !ok {
-				if err := r.Forge.AssociateHostWithGroup(ctx, groupID, hid); err != nil {
+				if err := r.Forail.AssociateHostWithGroup(ctx, groupID, hid); err != nil {
 					return fmt.Errorf("associate host %d to group %q: %w", hid, name, err)
 				}
 			}
 		}
 		for hid := range currentSet {
 			if _, ok := desiredHostIDs[hid]; !ok {
-				if err := r.Forge.DisassociateHostFromGroup(ctx, groupID, hid); err != nil {
+				if err := r.Forail.DisassociateHostFromGroup(ctx, groupID, hid); err != nil {
 					return fmt.Errorf("disassociate host %d from group %q: %w", hid, name, err)
 				}
 			}
@@ -291,7 +291,7 @@ func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Invent
 			}
 			desiredChildIDs[cid] = struct{}{}
 		}
-		currentChildIDs, err := r.Forge.ListGroupChildren(ctx, parentID)
+		currentChildIDs, err := r.Forail.ListGroupChildren(ctx, parentID)
 		if err != nil {
 			return fmt.Errorf("list group children %q: %w", name, err)
 		}
@@ -301,14 +301,14 @@ func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Invent
 		}
 		for cid := range desiredChildIDs {
 			if _, ok := currentSet[cid]; !ok {
-				if err := r.Forge.AssociateChildGroup(ctx, parentID, cid); err != nil {
+				if err := r.Forail.AssociateChildGroup(ctx, parentID, cid); err != nil {
 					return fmt.Errorf("associate child %d to group %q: %w", cid, name, err)
 				}
 			}
 		}
 		for cid := range currentSet {
 			if _, ok := desiredChildIDs[cid]; !ok {
-				if err := r.Forge.DisassociateChildGroup(ctx, parentID, cid); err != nil {
+				if err := r.Forail.DisassociateChildGroup(ctx, parentID, cid); err != nil {
 					return fmt.Errorf("disassociate child %d from group %q: %w", cid, name, err)
 				}
 			}
@@ -318,7 +318,7 @@ func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Invent
 	// Phase 4: delete groups that are no longer desired.
 	for name, cur := range currentByName {
 		if _, ok := desiredByName[name]; !ok {
-			if err := r.Forge.DeleteGroup(ctx, cur.ID); err != nil {
+			if err := r.Forail.DeleteGroup(ctx, cur.ID); err != nil {
 				return fmt.Errorf("delete group %q: %w", name, err)
 			}
 		}
@@ -327,7 +327,7 @@ func (r *InventoryReconciler) syncGroups(ctx context.Context, cr *forgev1.Invent
 	return nil
 }
 
-func (r *InventoryReconciler) markInventoryError(ctx context.Context, cr *forgev1.Inventory, reason string, err error) (ctrl.Result, error) {
+func (r *InventoryReconciler) markInventoryError(ctx context.Context, cr *forailv1.Inventory, reason string, err error) (ctrl.Result, error) {
 	setInventoryCondition(cr, conditionReady, metav1.ConditionFalse, reason, err.Error())
 	setInventoryCondition(cr, conditionSynced, metav1.ConditionFalse, reason, err.Error())
 	if uerr := r.Status().Update(ctx, cr); uerr != nil {
@@ -339,7 +339,7 @@ func (r *InventoryReconciler) markInventoryError(ctx context.Context, cr *forgev
 // SetupWithManager wires the reconciler.
 func (r *InventoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&forgev1.Inventory{}).
+		For(&forailv1.Inventory{}).
 		Complete(r)
 }
 
@@ -354,7 +354,7 @@ func hasFinalizer(slice []string, s string) bool {
 	return false
 }
 
-func setInventoryCondition(cr *forgev1.Inventory, condType string, status metav1.ConditionStatus, reason, msg string) {
+func setInventoryCondition(cr *forailv1.Inventory, condType string, status metav1.ConditionStatus, reason, msg string) {
 	now := metav1.Now()
 	for i, c := range cr.Status.Conditions {
 		if c.Type == condType {
