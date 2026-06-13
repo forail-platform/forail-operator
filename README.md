@@ -68,10 +68,10 @@ helm install forail-operator ./helm -n forail-operator --create-namespace \
 ```bash
 # 1. Build + push bundle and catalog images.
 make bundle bundle-build bundle-push \
-    BUNDLE_IMG=krlex/forail-operator-bundle:v1.0.0
+    BUNDLE_IMG=ghcr.io/forail-platform/forail-operator-bundle:2026.06.0
 make catalog-build catalog-push \
-    BUNDLE_IMG=krlex/forail-operator-bundle:v1.0.0 \
-    CATALOG_IMG=krlex/forail-operator-catalog:v1.0.0
+    BUNDLE_IMG=ghcr.io/forail-platform/forail-operator-bundle:2026.06.0 \
+    CATALOG_IMG=ghcr.io/forail-platform/forail-operator-catalog:2026.06.0
 
 # 2. Apply a CatalogSource pointing at the catalog image.
 cat <<EOF | kubectl apply -f -
@@ -80,7 +80,7 @@ kind: CatalogSource
 metadata: { name: forail, namespace: olm }
 spec:
   sourceType: grpc
-  image: krlex/forail-operator-catalog:v1.0.0
+  image: ghcr.io/forail-platform/forail-operator-catalog:2026.06.0
   displayName: Forail Operators
   publisher: Forail Platform
 EOF
@@ -131,7 +131,7 @@ make manifests     # regen config/crd/bases/*.yaml + config/rbac/role.yaml
 make build         # binary at bin/manager
 make vet
 make test          # envtest-driven integration tests
-make docker-build  # build IMAGE=krlex/forail-operator:latest
+make docker-build  # build IMAGE=ghcr.io/forail-platform/forail-operator:2026.06.0
 make bundle        # populate bundle/manifests/ from CRDs + CSV base
 make run           # run the operator out-of-cluster against $KUBECONFIG
 ```

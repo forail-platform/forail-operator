@@ -3,7 +3,7 @@
 # ── Image ─────────────────────────────────────────────────
 image:
   repository: ghcr.io/forail-platform/forail-operator
-  tag: "1.0.0"
+  tag: "2026.06.0"
   pullPolicy: IfNotPresent
 
 # Public ghcr.io images do not require pull secrets.

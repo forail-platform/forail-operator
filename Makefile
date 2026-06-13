@@ -3,7 +3,7 @@
 # All commands assume Go 1.23+ and kubectl on PATH (or running inside the
 # k8s-m1 vagrant VM where they're installed).
 
-IMAGE ?= krlex/forail-operator:latest
+IMAGE ?= ghcr.io/forail-platform/forail-operator:2026.06.0
 
 .PHONY: tidy
 tidy:
@@ -75,8 +75,8 @@ run:
 # image listing one or more bundle versions.
 
 VERSION     ?= 1.0.0
-BUNDLE_IMG  ?= krlex/forail-operator-bundle:v$(VERSION)
-CATALOG_IMG ?= krlex/forail-operator-catalog:v$(VERSION)
+BUNDLE_IMG  ?= ghcr.io/forail-platform/forail-operator-bundle:v$(VERSION)
+CATALOG_IMG ?= ghcr.io/forail-platform/forail-operator-catalog:v$(VERSION)
 
 .PHONY: bundle
 bundle: manifests
