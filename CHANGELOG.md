@@ -8,6 +8,17 @@ and the project uses SemVer.
 
 ## [Unreleased]
 
+## [2026.06.1] - 2026-06-20
+
+### Changed
+- **OLM bundle branding** — replaced the operator icon in the
+  ClusterServiceVersion with the current forail brand mark (the green
+  network glyph); the previously published bundle still carried the
+  legacy icon. Metadata-only change: the operand image is unchanged
+  (`ghcr.io/forail-platform/forail-operator:2026.06.0`). The CSV bumps to
+  `2026.6.1` with `replaces: forail-operator.v2026.6.0`. Published to
+  OperatorHub.io via community-operators#8401.
+
 ## [2026.06.0] - 2026-06-14
 
 ### Changed
