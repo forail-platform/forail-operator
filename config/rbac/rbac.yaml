@@ -24,9 +24,6 @@ rules:
     resources: ["jobtemplates/finalizers", "inventories/finalizers", "credentials/finalizers", "schedules/finalizers", "projects/finalizers", "organizations/finalizers", "teams/finalizers", "workflows/finalizers"]
     verbs: ["update"]
   - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
     resources: ["events"]
     verbs: ["create", "patch"]
   # Leader election (optional, only when --leader-elect)
@@ -46,3 +43,29 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: forail-operator
+---
+# needtofix M12: Secret access is namespaced, not cluster-wide. The credential
+# reconciler reads referenced Secrets only in the operator's namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: forail-operator-secrets
+  namespace: forail-operator
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: forail-operator-secrets
+  namespace: forail-operator
+subjects:
+  - kind: ServiceAccount
+    name: forail-operator
+    namespace: forail-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: forail-operator-secrets

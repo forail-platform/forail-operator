@@ -15,11 +15,6 @@ rules:
   - apiGroups: ["forail.forail-platform.io"]
     resources: ["jobtemplates/finalizers", "inventories/finalizers", "credentials/finalizers", "schedules/finalizers", "projects/finalizers", "organizations/finalizers", "teams/finalizers", "workflows/finalizers"]
     verbs: ["update"]
-  # Credential reconciler reads referenced k8s Secrets for sensitive
-  # input fields (passwords, ssh keys, vault tokens).
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["create", "patch"]
@@ -43,4 +38,37 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ .Release.Name }}-forail-operator
+---
+# needtofix M12: the credential reconciler reads referenced k8s Secrets for
+# sensitive input fields (passwords, ssh keys, vault tokens). That access is
+# a namespaced Role in the operator's own namespace — NOT a cluster-wide
+# secrets grant. A multi-namespace setup adds one RoleBinding per namespace
+# that holds Credential Secrets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-forail-operator-secrets
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "forail-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-forail-operator-secrets
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "forail-operator.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "forail-operator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-forail-operator-secrets
 {{- end }}

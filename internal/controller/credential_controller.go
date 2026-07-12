@@ -42,7 +42,10 @@ type CredentialReconciler struct {
 // +kubebuilder:rbac:groups=forail.forail-platform.io,resources=credentials,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=forail.forail-platform.io,resources=credentials/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=forail.forail-platform.io,resources=credentials/finalizers,verbs=update
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+// needtofix M12: namespaced secret access only — the reconciler must not be
+// able to read every Secret in the cluster. The namespace marker makes
+// controller-gen emit a namespaced Role instead of a ClusterRole rule.
+// +kubebuilder:rbac:groups="",namespace=forail-operator,resources=secrets,verbs=get;list;watch
 
 func (r *CredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
