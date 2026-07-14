@@ -8,6 +8,12 @@ and the project uses SemVer.
 
 ## [Unreleased]
 
+### Security
+- **Scoped Secret access**: the manager role no longer grants cluster-wide
+  `get/list/watch` on every Secret. The credential reconciler's Secret access is
+  now a namespaced `Role`/`RoleBinding` in the operator's own namespace (kustomize
+  + Helm), driven by a namespaced `+kubebuilder:rbac` marker.
+
 ## [2026.06.1] - 2026-06-20
 
 ### Changed
