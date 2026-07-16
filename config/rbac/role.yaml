@@ -5,14 +5,6 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - forail.forail-platform.io
   resources:
   - credentials
@@ -61,3 +53,20 @@ rules:
   - get
   - patch
   - update
+---
+# needtofix M12: namespaced Secret access (generated from the namespace= rbac
+# marker on CredentialReconciler). Regenerate with `make manifests`.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: manager-role
+  namespace: forail-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
