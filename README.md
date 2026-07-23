@@ -63,6 +63,18 @@ helm install forail-operator ./helm -n forail-operator --create-namespace \
     --set forail.token=$TOKEN
 ```
 
+Two namespace notes:
+
+- **Secrets referenced by `Credential` CRs must live in the operator's own
+  namespace.** The operator holds a namespaced Secret `Role` (not a ClusterRole)
+  and caches Secrets only there, so a `spec.inputsFrom` pointing at a Secret in
+  another namespace will not resolve.
+- **`forail.url` must be a host Forail accepts.** The chart's
+  `forail.allowedHosts` covers the `forail-web` Service DNS names, so the URL
+  above works as-is. Reaching Forail under any other name — an ingress host, an
+  external load balancer — means passing `--set forail.hostHeader=<that host>`,
+  otherwise Django rejects every call with `400`.
+
 ### Via OLM (recommended for OpenShift / OperatorHub)
 
 ```bash

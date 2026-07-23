@@ -14,6 +14,18 @@ and the project uses SemVer.
   now a namespaced `Role`/`RoleBinding` in the operator's own namespace (kustomize
   + Helm), driven by a namespaced `+kubebuilder:rbac` marker.
 
+### Fixed
+- **Operator no longer crash-loops under the scoped Secret role.** The credential
+  reconciler watches Secrets, and the manager cached them at *cluster* scope, so
+  the informer's list was refused by the namespaced role, the shared cache never
+  reported synced, and the manager exited with
+  `failed to wait for ... caches to sync` — taking all nine controllers down, not
+  just Credential. The manager now caches Secrets only in its own namespace,
+  resolved from the `POD_NAMESPACE` downward-API env (added to the Helm
+  deployment and the kustomize manager manifest) and falling back to the mounted
+  ServiceAccount namespace file. Out-of-cluster runs, where neither is present,
+  keep the unscoped cache and log why.
+
 ## [2026.06.1] - 2026-06-20
 
 ### Changed
