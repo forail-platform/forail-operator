@@ -31,6 +31,13 @@ spec:
             - --leader-elect=true
             {{- end }}
           env:
+            # Scopes the manager's Secret cache to this namespace, matching the
+            # namespaced Secret Role (needtofix M12). Without it the cache would
+            # watch Secrets cluster-wide, get 403, and never sync.
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: FORAIL_URL
               value: {{ .Values.forail.url | quote }}
             {{- if .Values.forail.hostHeader }}
