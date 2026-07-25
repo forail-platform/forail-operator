@@ -40,6 +40,7 @@ func main() {
 		forailToken      string
 		forailHostHeader string
 		forailInsecure   bool
+		secretNamespaces string
 	)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "Metrics endpoint")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "Health probe endpoint")
@@ -48,6 +49,7 @@ func main() {
 	flag.StringVar(&forailToken, "forail-token", os.Getenv("FORAIL_TOKEN"), "Forail OAuth2 personal access token (Bearer)")
 	flag.StringVar(&forailHostHeader, "forail-host-header", os.Getenv("FORAIL_HOST_HEADER"), "Host header to send (when reaching Forail via host-routed Ingress)")
 	flag.BoolVar(&forailInsecure, "forail-insecure-skip-verify", os.Getenv("FORAIL_INSECURE") == "true", "Skip TLS verify on Forail API (test only)")
+	flag.StringVar(&secretNamespaces, "secret-namespaces", os.Getenv("SECRET_NAMESPACES"), "Comma-separated extra namespaces to read Credential Secrets from, on top of the operator's own. Each one also needs the Secret Role the chart creates (secretNamespaces in values.yaml)")
 	opts := zap.Options{Development: true}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
@@ -65,11 +67,24 @@ func main() {
 	// ("failed to wait for ... caches to sync"), taking every controller down with
 	// it. Scope the Secret cache to the operator's own namespace so the informer
 	// asks only for what the Role actually grants.
+	//
+	// A Credential resolves spec.inputsFrom in its OWN namespace, so the
+	// operator's namespace alone only serves Credentials that live beside it.
+	// --secret-namespaces widens that to a named set. The Role grants and this
+	// cache scope have to move together: a RoleBinding in another namespace
+	// without the namespace here still fails with "unknown namespace for the
+	// cache", and this list without the Role gets a 403 the cache never
+	// recovers from. The chart drives both from one values key.
 	cacheOpts := cache.Options{}
-	if ns := operatorNamespace(); ns != "" {
-		cacheOpts.ByObject = map[client.Object]cache.ByObject{
-			&corev1.Secret{}: {Namespaces: map[string]cache.Config{ns: {}}},
+	if nss := secretCacheNamespaces(operatorNamespace(), secretNamespaces); len(nss) > 0 {
+		byNamespace := make(map[string]cache.Config, len(nss))
+		for _, ns := range nss {
+			byNamespace[ns] = cache.Config{}
 		}
+		cacheOpts.ByObject = map[client.Object]cache.ByObject{
+			&corev1.Secret{}: {Namespaces: byNamespace},
+		}
+		setupLog.Info("scoping the Secret cache", "namespaces", nss)
 	} else {
 		// Out-of-cluster runs (`make run`) use a kubeconfig that is normally
 		// cluster-admin, so an unscoped Secret cache is correct there.
@@ -197,6 +212,32 @@ func main() {
 // POD_NAMESPACE downward-API env the chart sets, falling back to the namespace
 // file every in-cluster ServiceAccount is mounted with (so a manifest that
 // predates the env var still scopes correctly). Empty means out-of-cluster.
+// secretCacheNamespaces returns the namespaces the Secret cache should cover:
+// the operator's own plus the comma-separated extras, trimmed and deduplicated,
+// keeping the caller's order so the logged list is stable.
+//
+// Returns nil when the operator namespace is unknown AND no extras were given —
+// that is the out-of-cluster case, where an unscoped cache is correct.
+func secretCacheNamespaces(own, extra string) []string {
+	own = strings.TrimSpace(own)
+	if own == "" {
+		// Out-of-cluster (`make run`): scoping to a set that cannot include the
+		// operator's own namespace would be worse than not scoping at all.
+		return nil
+	}
+	out := []string{own}
+	seen := map[string]bool{own: true}
+	for _, ns := range strings.Split(extra, ",") {
+		ns = strings.TrimSpace(ns)
+		if ns == "" || seen[ns] {
+			continue
+		}
+		seen[ns] = true
+		out = append(out, ns)
+	}
+	return out
+}
+
 func operatorNamespace() string {
 	if ns := strings.TrimSpace(os.Getenv("POD_NAMESPACE")); ns != "" {
 		return ns

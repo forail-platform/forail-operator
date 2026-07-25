@@ -30,6 +30,10 @@ spec:
             {{- if .Values.leaderElection }}
             - --leader-elect=true
             {{- end }}
+            {{- with .Values.secretNamespaces }}
+            # Must match the Secret Roles in rbac.yaml — same values key.
+            - --secret-namespaces={{ join "," . }}
+            {{- end }}
           env:
             # Scopes the manager's Secret cache to this namespace, matching the
             # namespaced Secret Role (needtofix M12). Without it the cache would

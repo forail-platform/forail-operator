@@ -38,26 +38,26 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ .Release.Name }}-forail-operator
----
 # needtofix M12: the credential reconciler reads referenced k8s Secrets for
-# sensitive input fields (passwords, ssh keys, vault tokens). That access is
-# a namespaced Role in the operator's own namespace — NOT a cluster-wide
-# secrets grant.
+# sensitive input fields (passwords, ssh keys, vault tokens). That access is a
+# namespaced Role — NOT a cluster-wide secrets grant.
 #
-# Consequence: Credential CRs that use spec.inputsFrom must live in THIS
-# namespace, together with the Secrets they reference. Elsewhere they fail with
-# "unable to get: <ns>/<name> because of unknown namespace for the cache".
-# Adding a RoleBinding in another namespace is not enough on its own -- the
-# manager's Secret cache is scoped to this namespace in cmd/main.go, so the
-# extra namespace would still be missing from the cache. Supporting Secrets in
-# several namespaces needs both to become configurable together.
+# A Credential resolves spec.inputsFrom in its OWN namespace, so every namespace
+# holding Credential Secrets needs both a Role here and an entry in the
+# manager's Secret cache (--secret-namespaces on the Deployment). A Role on its
+# own is not enough: the cache would still reject the namespace with "unknown
+# namespace for the cache". Both are rendered from .Values.secretNamespaces so
+# they cannot drift apart.
+{{- $secretNamespaces := concat (list .Release.Namespace) (.Values.secretNamespaces | default list) | uniq }}
+{{- range $ns := $secretNamespaces }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ .Release.Name }}-forail-operator-secrets
-  namespace: {{ .Release.Namespace }}
+  name: {{ $.Release.Name }}-forail-operator-secrets
+  namespace: {{ $ns }}
   labels:
-    {{- include "forail-operator.labels" . | nindent 4 }}
+    {{- include "forail-operator.labels" $ | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -66,16 +66,17 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .Release.Name }}-forail-operator-secrets
-  namespace: {{ .Release.Namespace }}
+  name: {{ $.Release.Name }}-forail-operator-secrets
+  namespace: {{ $ns }}
   labels:
-    {{- include "forail-operator.labels" . | nindent 4 }}
+    {{- include "forail-operator.labels" $ | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "forail-operator.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    name: {{ include "forail-operator.serviceAccountName" $ }}
+    namespace: {{ $.Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ .Release.Name }}-forail-operator-secrets
+  name: {{ $.Release.Name }}-forail-operator-secrets
+{{- end }}
 {{- end }}

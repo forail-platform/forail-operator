@@ -3,7 +3,7 @@
 # ── Image ─────────────────────────────────────────────────
 image:
   repository: ghcr.io/forail-platform/forail-operator
-  tag: "2026.07.0"
+  tag: "2026.07.1"
   pullPolicy: IfNotPresent
 
 # Public ghcr.io images do not require pull secrets.
@@ -41,6 +41,20 @@ leaderElection: false
 # ── RBAC ─────────────────────────────────────────────────
 rbac:
   create: true
+
+# Extra namespaces the operator may read Credential Secrets from.
+#
+# A Credential resolves spec.inputsFrom in its OWN namespace, and the operator's
+# Secret access is deliberately not cluster-wide (needtofix M12). By default it
+# can only read Secrets in this release's namespace, so Credentials have to live
+# there too. List other namespaces here to place them elsewhere:
+#
+#   secretNamespaces: [team-a, team-b]
+#
+# Each entry gets its own Secret Role/RoleBinding and is added to the manager's
+# Secret cache — both are required, which is why they come from one key. The
+# operator still never gets a cluster-wide secrets grant.
+secretNamespaces: []
 
 serviceAccount:
   create: true

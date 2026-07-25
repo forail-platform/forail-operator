@@ -2,8 +2,8 @@ apiVersion: v2
 name: forail-operator
 description: Kubernetes operator for the Forail automation platform — declarative Organization, Team, Project, Inventory, Credential, JobTemplate, Schedule, Workflow, and ForailInstance CRDs synced to the Forail REST API (multi-cluster capable)
 type: application
-version: 2026.7.0
-appVersion: "2026.07.0"
+version: 2026.7.1
+appVersion: "2026.07.1"
 home: https://forail-platform.github.io
 sources:
   - https://github.com/forail-platform/forail-operator
