@@ -42,8 +42,15 @@ roleRef:
 # needtofix M12: the credential reconciler reads referenced k8s Secrets for
 # sensitive input fields (passwords, ssh keys, vault tokens). That access is
 # a namespaced Role in the operator's own namespace — NOT a cluster-wide
-# secrets grant. A multi-namespace setup adds one RoleBinding per namespace
-# that holds Credential Secrets.
+# secrets grant.
+#
+# Consequence: Credential CRs that use spec.inputsFrom must live in THIS
+# namespace, together with the Secrets they reference. Elsewhere they fail with
+# "unable to get: <ns>/<name> because of unknown namespace for the cache".
+# Adding a RoleBinding in another namespace is not enough on its own -- the
+# manager's Secret cache is scoped to this namespace in cmd/main.go, so the
+# extra namespace would still be missing from the cache. Supporting Secrets in
+# several namespaces needs both to become configurable together.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
