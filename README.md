@@ -65,10 +65,21 @@ helm install forail-operator ./helm -n forail-operator --create-namespace \
 
 Two namespace notes:
 
-- **Secrets referenced by `Credential` CRs must live in the operator's own
-  namespace.** The operator holds a namespaced Secret `Role` (not a ClusterRole)
-  and caches Secrets only there, so a `spec.inputsFrom` pointing at a Secret in
-  another namespace will not resolve.
+- **Secrets referenced by `Credential` CRs resolve in the CR's own namespace,
+  and the operator only reads the namespaces it was given.** It holds a
+  namespaced Secret `Role` (never a ClusterRole) and caches Secrets only where
+  that Role exists. By default that is just the release namespace, so
+  Credentials live beside the operator. To keep them elsewhere, list those
+  namespaces at install time:
+
+  ```bash
+  helm install forail-operator ./helm ... --set 'secretNamespaces={team-a,team-b}'
+  ```
+
+  which creates the Secret `Role`/`RoleBinding` in each and adds it to the
+  operator's Secret cache. Both halves come from that one key — a `RoleBinding`
+  added by hand is not enough, the cache would still reject the namespace with
+  `unknown namespace for the cache`.
 - **`forail.url` must be a host Forail accepts.** The chart's
   `forail.allowedHosts` covers the `forail-web` Service DNS names, so the URL
   above works as-is. Reaching Forail under any other name — an ingress host, an
