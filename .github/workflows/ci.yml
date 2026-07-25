@@ -30,7 +30,30 @@ jobs:
         run: go install sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.19
       - name: Run controller tests (envtest)
         run: |
-          export KUBEBUILDER_ASSETS=$(setup-envtest use 1.30 -p path)
+          set -euo pipefail
+          # Assign separately, then check. `export VAR=$(cmd)` reports export's
+          # exit status, not the command's, so a failed asset download used to
+          # sail through with KUBEBUILDER_ASSETS empty -- envtest then looked
+          # for etcd on PATH and failed three steps later with
+          # 'exec: "etcd": executable file not found in $PATH', which says
+          # nothing about the real cause. The download is also occasionally
+          # flaky (it failed on the v2026.07.0 tag minutes after succeeding on
+          # the same commit on main), so retry before giving up.
+          assets=""
+          for attempt in 1 2 3; do
+            if assets=$(setup-envtest use 1.30 -p path) && [ -x "${assets}/etcd" ]; then
+              break
+            fi
+            echo "envtest assets not ready (attempt ${attempt}/3), retrying..."
+            assets=""
+            sleep 5
+          done
+          if [ -z "$assets" ] || [ ! -x "${assets}/etcd" ]; then
+            echo "could not fetch envtest control-plane binaries" >&2
+            exit 1
+          fi
+          echo "envtest assets: ${assets}"
+          export KUBEBUILDER_ASSETS="$assets"
           go test ./... -count=1 -timeout=120s
 
   publish:
